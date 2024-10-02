@@ -1,38 +1,12 @@
-from imutils import paths
+from stitching import Stitcher
 import numpy as np
-import argparse
 import imutils
 import cv2
 import datetime
 from natsort import natsorted
+import glob
 
-now = datetime.datetime.now()
-imgnameprefix = now.strftime("%m-%d-%Y-%H-%M-%S")
-imgname = imgnameprefix + "_stitched.png"
-
-imgpath = "../Images/shelflong80frames/"
-# imgpath = "./cameraframes/"
-outpath = "../Results/" + imgname
-
-ap = argparse.ArgumentParser()
-ap.add_argument(
-    "-i",
-    "--images",
-    type=str,
-    required=True,
-    help="path to input directory of images to stitch",
-)
-ap.add_argument(
-    "-o", "--output", type=str, required=True, help="path to the output image"
-)
-ap.add_argument(
-    "-c",
-    "--crop",
-    type=int,
-    default=0,
-    help="whether to crop out largest rectangular region",
-)
-args = vars(ap.parse_args(["--images", imgpath, "--output", outpath]))
+outpath = "../Results/" + datetime.datetime.now().strftime("%m-%d-%Y-%H-%M-%S") + "_stitched.png"
 
 def wb_opencv(img):
     wb = cv2.xphoto.createSimpleWB()
@@ -56,47 +30,53 @@ def imagePreProcess(imagetobeprocessed):
     final_img_lab = cv2.cvtColor(merged_lab, cv2.COLOR_LAB2BGR)
     return final_img_lab
 
+def resizeImage(img, scale):
+    h, w, _ = img.shape
+    h = h*scale
+    w = w*scale
+    # print (image.shape)
+    # print("Height: ", h, "; Width: ", w)
+    img = cv2.resize(img, (int(w) , int(h)))
+    return img
+
 print("[INFO] loading images...")
-# imagePaths = sorted(list(paths.list_images(args["images"])))
-imagePaths = natsorted(list(paths.list_images(args["images"])))
-images = []
-imageSizeRatio = 0.5
-i = 0
-for imagePath in imagePaths:
-    image = cv2.imread(imagePath)
-    h, w, c = image.shape
-    h = h*imageSizeRatio
-    w = w*imageSizeRatio
-    # print (image.shape)
-    print("Height: ", h, "; Width: ", w)
-    image = cv2.resize(image, (854 , 480))
-    # print (image.shape)
+imagePaths = natsorted(list(glob.glob("../Images/27framesstaffside/*")))
+
+if __name__ == "__main__":
+    images = []
     
-    processedimage = imagePreProcess(image)
-    images.append(processedimage)
-    i += 1
-    cv2.imwrite(("./dummy/"+str(i)+".png"), processedimage)
-    print(imagePath)
+    for imagePath in imagePaths:
+        image = cv2.imread(imagePath)
+        image = resizeImage(image, 1)
+        
+        processedimage = imagePreProcess(image)
+        images.append(processedimage)
+        print(imagePath)
+    
+    print("[INFO] stitching images...")
 
-# if __name__ == "__main__":
-#     print("[INFO] stitching images...")
+    (status, stitched) = cv2.Stitcher_create(cv2.Stitcher_SCANS).stitch(images)
+    
+    # settings = {"detector": "orb", 
+    #         "confidence_threshold": 0.5, 
+    #         # "blender_type": "feather",
+    #         "crop": False,
+    #         # "no-crop": "True",
+    #         # "wave_correct_kind": "auto"
+    #         "try_use_gpu": True
+    #         }
+    # stitcher = Stitcher(**settings)
+    # stitched = stitcher.stitch(images)
+    
+    if status == 0:
+        print("[INFO] save stitching...")
+        cv2.imwrite(outpath, stitched)
 
-#     stitcher = ( 
-#         cv2.createStitcher(cv2.Stitcher_SCANS)
-#         if imutils.is_cv3()
-#         else cv2.Stitcher_create(cv2.Stitcher_SCANS)
-#     )
-#     (status, stitched) = stitcher.stitch(images)
+        print("[INFO] displayed stitching...")
+        cv2.namedWindow("Stitched", cv2.WINDOW_NORMAL)
+        cv2.resizeWindow("Stitched", 1280, 720)
+        cv2.imshow("Stitched", stitched)
+        cv2.waitKey(0)
 
-#     if status == 0:
-#         print("[INFO] save stitching...")
-#         cv2.imwrite(args["output"], stitched)
-
-#         print("[INFO] displayed stitching...")
-#         cv2.namedWindow("Stitched", cv2.WINDOW_NORMAL)
-#         cv2.resizeWindow("Stitched", 1280, 720)
-#         cv2.imshow("Stitched", stitched)
-#         cv2.waitKey(0)
-
-#     else:
-#         print("[INFO] image stitching failed ({})".format(status))
+    else:
+        print("[INFO] image stitching failed ({})".format(status))

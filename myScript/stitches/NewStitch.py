@@ -12,7 +12,7 @@ settings = {"detector": "orb",
             }
 stitcher = Stitcher(**settings)
 
-image_paths = glob.glob('./Images/60fps_office/*.png')
+image_paths = glob.glob('../../Images/60fps_office/*.png')
 images = []
 
 for image in image_paths:
@@ -25,7 +25,7 @@ stitched_img = stitcher.stitch(images)
 
 now = datetime.datetime.now()
 imgnameprefix = now.strftime("%m-%d-%Y-%H-%M-%S")
-imgname = "./Results/" + imgnameprefix + "_stitched.png"
+imgname = "../../Results/" + imgnameprefix + "_stitched.png"
 
 print("writing ", imgname)
 cv2.imwrite(imgname, stitched_img)
