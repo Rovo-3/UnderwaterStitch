@@ -40,11 +40,25 @@ def resizeImage(img, scale):
     return img
 
 print("[INFO] loading images...")
-imagePaths = natsorted(list(glob.glob("../Images/27framesstaffside/*")))
+imagePaths = natsorted(list(glob.glob("../Images/vidframes/*")))
 
 if __name__ == "__main__":
     images = []
     
+    # arr1 = []
+    # arr2 = []
+    # count = 0
+    # for i in range(10):
+    #     arr1.append(i)
+    #     count += 1
+    #     if count == 2:
+    #         data = arr1[(len(arr1)-2)] + arr1[(len(arr1)-1)]
+    #         print(data)
+    #         arr2.append(data)
+    #         arr1.clear()
+    #         count = 0
+    # print(arr1)
+    # print(arr2)
     for imagePath in imagePaths:
         image = cv2.imread(imagePath)
         image = resizeImage(image, 1)
@@ -54,29 +68,32 @@ if __name__ == "__main__":
         print(imagePath)
     
     print("[INFO] stitching images...")
-
-    (status, stitched) = cv2.Stitcher_create(cv2.Stitcher_SCANS).stitch(images)
+    # scan = cv2.Stitcher_SCANS
+    # panorama = cv2.Stitcher_PANORAMA
+    # (status, stitched) = cv2.Stitcher.create(scan).stitch(images)
     
-    # settings = {"detector": "orb", 
-    #         "confidence_threshold": 0.5, 
-    #         # "blender_type": "feather",
-    #         "crop": False,
-    #         # "no-crop": "True",
-    #         # "wave_correct_kind": "auto"
-    #         "try_use_gpu": True
-    #         }
-    # stitcher = Stitcher(**settings)
-    # stitched = stitcher.stitch(images)
+    settings = {"detector": "sift", 
+            "confidence_threshold": 0.5, 
+            # "blender_type": "feather",
+            "crop": False,
+            # "no-crop": "True",
+            # "wave_correct_kind": "auto"
+            "try_use_gpu": True
+            }
+    stitcher = Stitcher(**settings)
+    stitched = stitcher.stitch(images)
     
-    if status == 0:
-        print("[INFO] save stitching...")
-        cv2.imwrite(outpath, stitched)
+    # if status == 0:
+    # try:
+    print("[INFO] save stitching...")
+    cv2.imwrite(outpath, stitched)
 
-        print("[INFO] displayed stitching...")
-        cv2.namedWindow("Stitched", cv2.WINDOW_NORMAL)
-        cv2.resizeWindow("Stitched", 1280, 720)
-        cv2.imshow("Stitched", stitched)
-        cv2.waitKey(0)
+    print("[INFO] displayed stitching...")
+    cv2.namedWindow("Stitched", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("Stitched", 1280, 720)
+    cv2.imshow("Stitched", stitched)
+    cv2.waitKey(0)
 
-    else:
-        print("[INFO] image stitching failed ({})".format(status))
+    # except:
+    # else:
+        # print("[INFO] image stitching failed ({})".format(status))
