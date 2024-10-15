@@ -1,17 +1,17 @@
 import cv2
 import datetime
 
-image_path = '../../Images/coralblurry/4.png'
+image_path = '../../Images/officeshelfmasjadonpong/5.png'
 # image_path = '../cameraframes/Frame13.jpg'
 image = cv2.imread(image_path)
 image = cv2.resize(image, (854 , 480))
 
-image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-cv2.imshow("gray", image)
-cv2.waitKey(0)
-image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-cv2.imshow("color", image)
-cv2.waitKey(0)
+# image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+# cv2.imshow("gray", image)
+# cv2.waitKey(0)
+# image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+# cv2.imshow("color", image)
+# cv2.waitKey(0)
 
 
 now = datetime.datetime.now()
