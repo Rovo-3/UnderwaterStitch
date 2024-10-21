@@ -24,11 +24,11 @@ def chanelClahe(channel):
     return channel_clahe
 
 
-def imagePreProcess(imagetobeprocessed, sigma, kernel, blur=False):
-    white_balanced_img = wbOpenCV(imagetobeprocessed)
-    imagetobeprocessed = white_balanced_img
+def imagePreProcess(img, sigma, kernel, blur=False):
+    white_balanced_img = wbOpenCV(img)
+    img = white_balanced_img
 
-    lab_image = cv2.cvtColor(imagetobeprocessed, cv2.COLOR_BGR2LAB)
+    lab_image = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
     l_channel, a_channel, b_channel = cv2.split(lab_image)
 
     l_channel_clahe = chanelClahe(l_channel)
@@ -48,19 +48,21 @@ def resizeImage(img, scale):
     return img
 
 
-def detectorKeypoint(detector, gray_img):
-    keypoint, descriptors = detector.detectAndCompute(gray_img, None)
+def detectorKeypoint(detector, img, mask=None):
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    keypoint, descriptors = detector.detectAndCompute(gray, mask)
     return keypoint, descriptors
 
 
-def BFMatch(stittchedimg, stitchKeypoints, stitchDescriptor, img_num, nmatches=500):
+def BFMatch(img, stitchKeypoints, stitchDescriptor, img_num, nmatches=500):
 
     bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
     matches = bf.match(stitchDescriptor, arrdescriptors[img_num + 1])
     matches = sorted(matches, key=lambda x: x.distance)
 
     img_matches = cv2.drawMatches(
-        stittchedimg,
+        img,
         stitchKeypoints,
         arrimage[img_num + 1],
         arrkeypoints[img_num + 1],
@@ -101,100 +103,99 @@ def BFMatchKNN(img_num):
         print(e)
 
 
-def homMatrix(stitchedimg, stitchKeypoints, img_num, match):
-    srcKpts = np.float32(
-        [(stitchKeypoints)[m.queryIdx].pt for m in match]
-    ).reshape(-1, 1, 2)
+def homMatrix(stitchKeypoints, img_num, match):
+    srcKpts = np.float32([(stitchKeypoints)[m.queryIdx].pt for m in match]).reshape(
+        -1, 1, 2
+    )
 
     dtsKpts = np.float32(
         [(arrkeypoints[img_num + 1])[m.trainIdx].pt for m in match]
     ).reshape(-1, 1, 2)
 
-    Hom, mask = cv2.findHomography(dtsKpts, srcKpts, cv2.RANSAC, 5.0)
-
-    # Try to apply mask ==================================================================
+    Hom, mask = cv2.findHomography(srcKpts, dtsKpts, cv2.RANSAC, 10.0)
     matchesMask = mask.ravel().tolist()
-
-    draw_params = dict(
-        matchColor=(0, 255, 0),  # Green color for inliers
-        singlePointColor=(255, 0, 0),  # Red for keypoints
-        matchesMask=matchesMask,  # Mask for matches
-        flags=2,
-    )
-
-    img_matches = cv2.drawMatches(
-        stitchedimg,
-        stitchKeypoints,
-        arrimage[img_num + 1],
-        arrkeypoints[img_num + 1],
-        match,
-        None,
-        **draw_params,
-    )
-
-    # Try using the inlier =====================================
-    img_matches = resizeImage(img_matches, 0.4)
-    cv2.imshow("Inliers", img_matches)
-    cv2.waitKey(500)
 
     inlier_matches = [match[i] for i in range(len(match)) if mask[i]]
     print("Inlier Match: ", len(inlier_matches))
-    confidence = len(inlier_matches) / (8 + (0.3 * len(match)))
+    # confidence = len(inlier_matches) / (8 + (0.3 * len(match)))
+    confidence = len(inlier_matches) / (1 + (0.1 * len(match)))
+    print("Matches: ", len(match))
     print("Confidence: ", confidence)
 
-    # inlier_src_pts = np.float32(
-    #     [(arrkeypoints[img_num])[m.queryIdx].pt for m in inlier_matches]
-    # ).reshape(-1, 2)
-    # inlier_dst_pts = np.float32(
-    #     [(arrkeypoints[img_num + 1])[m.trainIdx].pt for m in inlier_matches]
-    # ).reshape(-1, 2)
-
-    # Hom2, mask2 = cv2.findHomography(inlier_src_pts, inlier_dst_pts, cv2.RANSAC, 5.0)
-    # Try using the inlier =====================================
-
-    # Try to apply mask ==================================================================
-    print(f"Homog: {img_num} --> Ret")
     return confidence, Hom
 
 
-def commandStitch(stitimg, nextimg, HomMatx):
+def commandStitch(img, nextimg, HomMatx):
 
-    h1, w1, _ = stitimg.shape
+    h1, w1, _ = img.shape
     h2, w2, _ = nextimg.shape
 
     img2Warped = cv2.warpPerspective(nextimg, HomMatx, (w1 + w2, max(h1, h2)))
 
     stitchedimg = np.copy(img2Warped)
 
-    # alpha = 0.5
-    # blendedRegion = cv2.addWeighted(
-    #     stitimg, 1, stitchedimg[0:h1, 0:w1], 1 - alpha, 0
-    # )
-    stitchedimg[0:h1, 0:w1] = stitimg
-    # stitchedimg = resizeImage(stitchedimg, 0.4)
+    stitchedimg[0:h1, 0:w1] = img
 
-    print(f"h1: {h1}, w1: {w1}, h2: {h2}, w2: {w2} --> Ret")
+    print(f"h1: {h1}, w1: {w1} <-- h2: {h2}, w2: {w2}")
 
     return stitchedimg
 
 
-def stitched2(stitchedimg, nextimg, HomMatx):
+def trimRightSide(img):
 
-    h1, w1, _ = stitchedimg.shape
-    h2, w2, _ = nextimg.shape
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    gray = cv2.medianBlur(gray, 3)
 
-    img2Warped = cv2.warpPerspective(nextimg, HomMatx, (w1 + w2, max(h1, h2)))
-
-    stitchedimg = np.copy(img2Warped)
-
-    alpha = 0.5
-    blendedRegion = cv2.addWeighted(
-        stitchedimg, alpha, stitchedimg[0:h1, 0:w1], 1 - alpha, 0
+    ret, thresh = cv2.threshold(gray, 1, 255, 0)
+    contours, hierarchy = cv2.findContours(
+        thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE
     )
-    stitchedimg[0:h1, 0:w1] = blendedRegion
-    stitchedimg = resizeImage(stitchedimg, 0.4)
 
-    return stitchedimg
+    max_area = -1
+    best_cnt = None
+
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if area > max_area:
+            max_area = area
+            best_cnt = cnt
+
+    approx = cv2.approxPolyDP(best_cnt, 0.01 * cv2.arcLength(best_cnt, True), True)
+
+    distances = np.linalg.norm(approx[:, 0, :], axis=1)
+    far = approx[distances.argmax()][0]
+
+    ymax = approx[:, :, 1].max()
+    xmax = approx[:, :, 0].max()
+
+    x = min(far[0], xmax)
+    y = min(far[1], ymax)
+
+    img2 = img[:y, :x].copy()
+    return img2
+
+
+def trimBlackArea(stitched_img):
+    # Convert to grayscale
+    gray = cv2.cvtColor(stitched_img, cv2.COLOR_BGR2GRAY)
+
+    # Find all non-black pixel coordinates
+    non_black_pixels = np.nonzero(gray)
+
+    # If no non-black pixels are found, return the original image
+    if len(non_black_pixels[0]) == 0:
+        print("returned original")
+        return stitched_img
+
+    # Get the bounding box for non-black pixels
+    min_y, max_y = np.min(non_black_pixels[0]), np.max(non_black_pixels[0])
+    min_x, max_x = np.min(non_black_pixels[1]), np.max(non_black_pixels[1])
+
+    # Crop the image to this bounding box
+    cropped_img = stitched_img[min_y : max_y + 1, min_x : max_x + 1]
+    print(f"y1:{min_y}, y2:{max_y}, x1:{min_x}, x2{max_x}")
+    cropped_img = trimRightSide(cropped_img)
+    return cropped_img
 
 
 sift = cv2.SIFT.create()
@@ -202,15 +203,13 @@ orb = cv2.ORB.create()
 brisk = cv2.BRISK.create()
 akaze = cv2.AKAZE.create()
 
-imagePaths = natsorted(list(glob.glob("../../Images/2ndfloor/*")), reverse=False)
 # imagePaths = natsorted(list(glob.glob("../../Images/seaTrial30pics/*")), reverse=True)
-# imagePaths = natsorted(list(glob.glob("../dumdum/*")))
+imagePaths = natsorted(list(glob.glob("./st1/*")), reverse=False)
 
-arrimage = []
-arrkeypoints = []
-arrdescriptors = []
+arrimage, arrkeypoints, arrdescriptors = [], [], []
+
 goodkeypoints = []
-test = []
+notStitched = []
 
 if __name__ == "__main__":
 
@@ -219,13 +218,9 @@ if __name__ == "__main__":
         readImage = resizeImage(readImage, 1)
         readImage = imagePreProcess(readImage, 0, (1, 1), False)
 
-        cvtColorImg = cv2.cvtColor(readImage, cv2.COLOR_BGR2GRAY)
-        keypoint, descr = detectorKeypoint(brisk, cvtColorImg)
-        print(f"Images: ({len(arrimage)+1}/{len(imagePaths)})")
+        keypoint, descr = detectorKeypoint(brisk, readImage)
+        print(f"Load Images: ({len(arrimage)+1}/{len(imagePaths)})")
 
-        drawnKeypoints = cv2.drawKeypoints(
-            readImage, keypoint, None, color=(255, 255, 0)
-        )
         arrimage.append(readImage)
         arrdescriptors.append(descr)
         arrkeypoints.append(keypoint)
@@ -235,90 +230,39 @@ if __name__ == "__main__":
     for imagenumber in range(len(arrimage)):
         if imagenumber == len(arrimage) - 1:
             break
-        stitchKeypoints, stitchDescriptor = detectorKeypoint(
-            brisk, cv2.cvtColor(stitchedimg, cv2.COLOR_BGR2GRAY)
-        )
+        stitchKeypoints, stitchDescriptor = detectorKeypoint(brisk, stitchedimg)
 
-        # Revise here to be using mask ==================
         img_matches, matchess = BFMatch(
             stitchedimg, stitchKeypoints, stitchDescriptor, imagenumber, 2000
         )
         print(f"Image {imagenumber+1} with {imagenumber+2}")
 
-        confidence, HomogMatx = homMatrix(
-            stitchedimg, stitchKeypoints, imagenumber, matchess
-        )  # <--- Revise the stitching using the masked inliners, take out any pictures with low inlier, then try stitching.
-        # can also try to use the KNN matcher
-        # Revise here to be using mask ==================
-        # if confidence >= 0.051:
-        # print("Stitched")
-        nextimg = arrimage[imagenumber + 1]
-        stitchedimg = commandStitch(stitchedimg, nextimg, HomogMatx)
+        confidence, HomogMatx = homMatrix(stitchKeypoints, imagenumber, matchess)
+        if confidence >= 5:
+            nextimg = arrimage[imagenumber + 1]
+            stitchedimg = commandStitch(stitchedimg, nextimg, HomogMatx)
+            stitchedimg = trimBlackArea(stitchedimg)
 
-        # cv2.putText(
-        #     stitchedimg,
-        #     "Confidence: {:.3f}".format(confidence),
-        #     (10, 30),
-        #     cv2.FONT_HERSHEY_SIMPLEX,
-        #     0.5,
-        #     (0, 0, 255),
-        #     2,
-        # )
+            h, w, _ = stitchedimg.shape
 
-        cv2.namedWindow("stitched", cv2.WINDOW_NORMAL)
-        cv2.resizeWindow("stitched", 1280, 720)
-        cv2.imshow("stitched", stitchedimg)
-        cv2.waitKey(0)
-        # else:
-        #     print("Not Stitched")
-        #     test.append(imagenumber + 1)
-        # cv2.imwrite(f"./res{imagenumber}.jpg", stitchedimg)
+            cv2.namedWindow("stitched", cv2.WINDOW_NORMAL)
+            cv2.resizeWindow("stitched", w, h)
+            cv2.imshow("stitched", stitchedimg)
+            cv2.waitKey(500)
+
+        else:
+            cv2.destroyAllWindows()
+            print("Not Stitched")
+            notStitched.append(imagenumber)
         print("===========")
 
     print("=== FINISH ===")
-    print("not stitched", test)
+    print("Number of images left: ", len(notStitched))
+    print("Not Stitched Image", notStitched)
+
+    cv2.namedWindow("Final Image", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("Final Image", 1280, 720)
+    cv2.imshow("Final Image", stitchedimg)
+    cv2.imwrite(f"./stRes/st1resaa{imagenumber+1}.jpg", stitchedimg)
+    cv2.waitKey(0)
     cv2.destroyAllWindows()
-
-# ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-
-# def stitched2(stitchedimg, nextimg, HomMatx):
-
-#     h1, w1, _ = stitchedimg.shape
-#     h2, w2, _ = nextimg.shape
-
-#     img2Warped = cv2.warpPerspective(nextimg, HomMatx, (w1 + w2, max(h1, h2)))
-
-#     stitchedimg = np.copy(img2Warped)
-
-#     alpha = 0.5
-#     blendedRegion = cv2.addWeighted(
-#         stitchedimg, alpha, stitchedimg[0:h1, 0:w1], 1 - alpha, 0
-#     )
-#     stitchedimg[0:h1, 0:w1] = blendedRegion
-#     stitchedimg = resizeImage(stitchedimg, 0.4)
-
-#     return stitchedimg
-
-# stitchedimg = arrimage[0]
-# stitchedimg = stitched2(stitchedimg, arrimage[i], HomogMatx)
-
-
-# def commandStitch(stitchedimg, next_img, HomMatx):
-#     h1, w1, _ = stitchedimg.shape
-#     h2, w2, _ = next_img.shape
-
-#     # Warp the next image using homography
-#     img2Warped = cv2.warpPerspective(next_img, HomMatx, (w1 + w2, max(h1, h2)))
-
-#     # Create a copy for blending
-#     stitchedCanvas = np.copy(img2Warped)
-
-#     # Blend overlapping regions using weighted sum
-#     alpha = 0.5
-#     blendedRegion = cv2.addWeighted(stitchedimg, alpha, stitchedCanvas[0:h1, 0:w1], 1 - alpha, 0)
-#     stitchedCanvas[0:h1, 0:w1] = blendedRegion
-
-#     # Optionally resize for display or output purposes
-#     stitchedCanvas = resizeImage(stitchedCanvas, 0.4)
-
-#     return stitchedCanvas
