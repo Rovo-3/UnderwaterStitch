@@ -98,6 +98,11 @@ def stitch_images_central(detector, images):
             images[i], homographies[i], (central_image.shape[1], central_image.shape[0])
         )  # Resize to central image size
         stitched = overlay_images(stitched, warped_image)
+        cv2.namedWindow("stitching", cv2.WINDOW_NORMAL)
+        cv2.resizeWindow("stitching", 1280, 720)
+        cv2.imshow("stitching", stitched)
+        cv2.waitKey(500)
+        
 
     return stitched
 
@@ -118,8 +123,10 @@ def overlay_images(base_img, new_img):
 imagescale = 1
 ip = ImageProcessor(imagescale)
 
-# imagePaths = natsorted(list(glob.glob("./st2/*")))
-imagePaths = natsorted(list(glob.glob("../../Images/seaTrial30pics/*")))
+imagePaths = natsorted(list(glob.glob("./st1/*")))
+# imagePaths = natsorted(list(glob.glob("../../Images/seaTrial30pics/*")))
+imagePaths = natsorted(list(glob.glob("../../Images/60fps_office/*")))
+
 images = []
 
 
