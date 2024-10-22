@@ -52,12 +52,13 @@ def detectorKeypoint(detector, img, mask=None):
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     keypoint, descriptors = detector.detectAndCompute(gray, mask)
-    return keypoint, descriptors
+    matcher = cv2.NORM_HAMMING if detector != cv2.SIFT.create() else cv2.NORM_L1
+    return keypoint, descriptors, matcher
 
 
-def BFMatch(img, stitchKeypoints, stitchDescriptor, img_num, nmatches=500):
+def BFMatch(matcher, img, stitchKeypoints, stitchDescriptor, img_num, nmatches=500):
 
-    bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+    bf = cv2.BFMatcher(matcher, crossCheck=True)
     matches = bf.match(stitchDescriptor, arrdescriptors[img_num + 1])
     matches = sorted(matches, key=lambda x: x.distance)
 
@@ -112,7 +113,7 @@ def homMatrix(stitchKeypoints, img_num, match):
         [(arrkeypoints[img_num + 1])[m.trainIdx].pt for m in match]
     ).reshape(-1, 1, 2)
 
-    Hom, mask = cv2.findHomography(srcKpts, dtsKpts, cv2.RANSAC, 10.0)
+    Hom, mask = cv2.findHomography(dtsKpts, srcKpts, cv2.RANSAC, 10.0)
     matchesMask = mask.ravel().tolist()
 
     inlier_matches = [match[i] for i in range(len(match)) if mask[i]]
@@ -203,13 +204,15 @@ orb = cv2.ORB.create()
 brisk = cv2.BRISK.create()
 akaze = cv2.AKAZE.create()
 
-# imagePaths = natsorted(list(glob.glob("../../Images/seaTrial30pics/*")), reverse=True)
+# imagePaths = natsorted(list(glob.glob("../../Images/2ndfloor/*")), reverse=False)
 imagePaths = natsorted(list(glob.glob("./st1/*")), reverse=False)
 
 arrimage, arrkeypoints, arrdescriptors = [], [], []
 
 goodkeypoints = []
 notStitched = []
+
+screensize = 0.5
 
 if __name__ == "__main__":
 
@@ -218,7 +221,7 @@ if __name__ == "__main__":
         readImage = resizeImage(readImage, 1)
         readImage = imagePreProcess(readImage, 0, (1, 1), False)
 
-        keypoint, descr = detectorKeypoint(brisk, readImage)
+        keypoint, descr, _ = detectorKeypoint(brisk, readImage)
         print(f"Load Images: ({len(arrimage)+1}/{len(imagePaths)})")
 
         arrimage.append(readImage)
@@ -230,15 +233,15 @@ if __name__ == "__main__":
     for imagenumber in range(len(arrimage)):
         if imagenumber == len(arrimage) - 1:
             break
-        stitchKeypoints, stitchDescriptor = detectorKeypoint(brisk, stitchedimg)
+        stitchKeypoints, stitchDescriptor, matcher = detectorKeypoint(brisk, stitchedimg)
 
         img_matches, matchess = BFMatch(
-            stitchedimg, stitchKeypoints, stitchDescriptor, imagenumber, 2000
+            matcher, stitchedimg, stitchKeypoints, stitchDescriptor, imagenumber, 2000
         )
         print(f"Image {imagenumber+1} with {imagenumber+2}")
 
         confidence, HomogMatx = homMatrix(stitchKeypoints, imagenumber, matchess)
-        if confidence >= 5:
+        if confidence >= 0.04:
             nextimg = arrimage[imagenumber + 1]
             stitchedimg = commandStitch(stitchedimg, nextimg, HomogMatx)
             stitchedimg = trimBlackArea(stitchedimg)
@@ -246,7 +249,7 @@ if __name__ == "__main__":
             h, w, _ = stitchedimg.shape
 
             cv2.namedWindow("stitched", cv2.WINDOW_NORMAL)
-            cv2.resizeWindow("stitched", w, h)
+            cv2.resizeWindow("stitched", int(w*screensize), int(h*screensize))
             cv2.imshow("stitched", stitchedimg)
             cv2.waitKey(500)
 
@@ -263,6 +266,6 @@ if __name__ == "__main__":
     cv2.namedWindow("Final Image", cv2.WINDOW_NORMAL)
     cv2.resizeWindow("Final Image", 1280, 720)
     cv2.imshow("Final Image", stitchedimg)
-    cv2.imwrite(f"./stRes/st1resaa{imagenumber+1}.jpg", stitchedimg)
+    cv2.imwrite(f"./stRes/st1resa0000a{imagenumber+1}.jpg", stitchedimg)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
