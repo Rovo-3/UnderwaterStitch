@@ -43,7 +43,10 @@ class ImageProcessor:
         return resized_img
 
 
-def stitch_images_central(images):
+def stitch_images_central(detector, images):
+    # BF Matcher
+    matcher = cv2.NORM_HAMMING if detector != cv2.SIFT.create() else cv2.NORM_L1
+        
     # Select the central image as the anchor
     central_idx = len(images) // 2
     central_image = images[central_idx]
@@ -54,16 +57,14 @@ def stitch_images_central(images):
     # Create a list of homographies for each image (initialize to identity matrix)
     homographies = [np.eye(3) for _ in range(len(images))]
 
-    # Initialize the SIFT detector
-    sift = cv2.SIFT_create()
-
     # Compute homographies for images to the left of the central image
     for i in range(central_idx - 1, -1, -1):
-        kp1, des1 = sift.detectAndCompute(images[i], None)
-        kp2, des2 = sift.detectAndCompute(images[i + 1], None)
+        kp1, des1 = detector.detectAndCompute(images[i], None)
+        kp2, des2 = detector.detectAndCompute(images[i + 1], None)
 
         # Match features using BFMatcher with L2 norm
-        bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+        
+        bf = cv2.BFMatcher(matcher, crossCheck=True)
         matches = bf.match(des1, des2)
 
         # Extract the matched keypoints
@@ -76,11 +77,11 @@ def stitch_images_central(images):
 
     # Compute homographies for images to the right of the central image
     for i in range(central_idx + 1, len(images)):
-        kp1, des1 = sift.detectAndCompute(images[i], None)
-        kp2, des2 = sift.detectAndCompute(images[i - 1], None)
+        kp1, des1 = detector.detectAndCompute(images[i], None)
+        kp2, des2 = detector.detectAndCompute(images[i - 1], None)
 
         # Match features using BFMatcher with L2 norm
-        bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+        bf = cv2.BFMatcher(matcher, crossCheck=True)
         matches = bf.match(des1, des2)
 
         # Extract the matched keypoints
@@ -117,8 +118,16 @@ def overlay_images(base_img, new_img):
 imagescale = 1
 ip = ImageProcessor(imagescale)
 
-imagePaths = natsorted(list(glob.glob("./st2/*")))
+# imagePaths = natsorted(list(glob.glob("./st2/*")))
+imagePaths = natsorted(list(glob.glob("../../Images/seaTrial30pics/*")))
 images = []
+
+
+# Initialize the SIFT detector
+sift = cv2.SIFT.create() # cv.NORM_L2
+orb = cv2.ORB.create() # cv2.NORM_HAMMING
+brisk = cv2.BRISK.create() # cv.NORM_L2
+akaze = cv2.AKAZE.create() # cv.NORM_L2
 
 if __name__ == "__main__":
     for image in imagePaths:
@@ -128,8 +137,9 @@ if __name__ == "__main__":
 
         images.append(readImage)
 
-    stitched_image = stitch_images_central(images)
-
+    stitched_image = stitch_images_central(brisk, images)
+    ip = ImageProcessor(0.5)
+    stitched_image = ip.resizeImage(stitched_image)
     cv2.imshow("stitched_output", stitched_image)
     cv2.waitKey(0)
     cv2.imwrite("stitched_output.jpg", stitched_image)
