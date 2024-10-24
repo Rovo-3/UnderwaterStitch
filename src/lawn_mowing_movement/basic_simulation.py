@@ -13,7 +13,7 @@ def simulate_guidance(waypoints, mode, lookahead_distance=None, k_e=None, initia
     dt = 0.1
     velocity = 0.1
 
-    guidance = Guidance(waypoints, mode, lookahead_distance, k_e, dt)
+    guidance = Guidance(waypoints, mode, lookahead_distance, k_e, dt,generate_virtual_wp=True)
 
     trajectory = [vehicle_position]
     heading = [(0,vehicle_heading)]
@@ -21,7 +21,7 @@ def simulate_guidance(waypoints, mode, lookahead_distance=None, k_e=None, initia
     for t in np.arange(1, 1000, dt):
         # print(vehicle_heading)
         # print(guidance.current_waypoint_index)
-        target_angle, target_point = guidance.calculate_steering(vehicle_position, vehicle_heading, velocity)
+        target_angle, target_point, status = guidance.calculate_steering(vehicle_position, vehicle_heading, velocity)
 
         print(target_point)
 
@@ -48,7 +48,8 @@ def simulate_guidance(waypoints, mode, lookahead_distance=None, k_e=None, initia
     return trajectory, heading, guidance
 
 # Generate waypoints
-wp = SweepWPGenerator(length=3, angle=90, gap=1, iteration=2)
+angle = math.radians(-130)
+wp = SweepWPGenerator(length=10, angle=angle, gap=1, iteration=2)
 waypoints = wp.generate()
 # waypoints = [(0,0),(3,3)]
 
@@ -56,8 +57,8 @@ waypoints = wp.generate()
 lookahead_distance = 0.2  # Pure Pursuit Lookahead Distance
 k_e = 0.4  # Stanley Gain
 
-initial_position = (-1, -1)
-initial_heading = 30.0
+initial_position = (0, 0)
+initial_heading = 80.0
 
 # Simulate LOS
 los_trajectory, los_heading, _ = simulate_guidance(waypoints, 'LOS', initial_position=initial_position, initial_heading=initial_heading)
@@ -69,11 +70,11 @@ pp_trajectory, pp_heading, guidance = simulate_guidance(waypoints, 'PP', lookahe
 stanley_trajectory, stanley_heading, _ = simulate_guidance(waypoints, 'Stanley', k_e=k_e, initial_position=initial_position, initial_heading=initial_heading)
 
 # Plot results
-waypoints = np.array(waypoints)
+waypoints = np.array(guidance.waypoints)
 los_trajectory = np.array(los_trajectory)
 los_heading=np.array(pp_heading)
 pp_trajectory = np.array(pp_trajectory)
-# virtual_wp = np.array(guidance.virtual_waypoints)
+# virtual_wp = np.array(guidance.waypoints)
 stanley_trajectory = np.array(stanley_trajectory)
 
 plt.plot(waypoints[:, 0], waypoints[:, 1], 'ro-', label='Waypoints')

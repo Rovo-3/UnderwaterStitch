@@ -4,7 +4,7 @@ import numpy as np
 # import time
 
 class Guidance:
-    def __init__(self, waypoints, mode, lookahead_distance=None, k_e=None, distance_treshold = 0.1, generate_virtual_wp=True, dt=1):
+    def __init__(self, waypoints, mode, lookahead_distance=None, k_e=None, distance_treshold = 0.1, generate_virtual_wp=False, dt=1):
         self.waypoints = waypoints
         self.mode = mode  # 'LOS', 'PP', or 'Stanley'
         self.lookahead_distance = lookahead_distance  # Only for PP
@@ -12,6 +12,8 @@ class Guidance:
         self.current_waypoint_index = 0
         self.distance_treshold = distance_treshold
         self.dt = dt
+        self.max_steering_angle = np.radians(30)
+        self.status="Going to WP: " + str(self.current_waypoint_index)
         if generate_virtual_wp:
             self.generate_virtual_waypoints()
 
@@ -25,6 +27,9 @@ class Guidance:
             # if its not the last waypoint, go to next waypoint by increase the index
             if self.current_waypoint_index < len(self.waypoints) - 1:
                 self.current_waypoint_index += 1
+            # else, done
+            else:
+                self.status="Guidance Done"
 
     # Line-of-Sight Guidance
     def los(self, vehicle_position, vehicle_heading):
@@ -33,8 +38,16 @@ class Guidance:
         target_point = self.waypoints[self.current_waypoint_index]
         dx = target_point[0] - vehicle_position[0]
         dy = target_point[1] - vehicle_position[1]
+        
         target_heading = (np.arctan2(dx, dy))
-        return target_heading, target_point
+        print("Here is the guidance")
+        print(dx,dy)
+        # print(target_heading)
+        heading_error = target_heading-vehicle_heading
+        heading_error = np.arctan2(np.sin(heading_error), np.cos(heading_error))
+        steering_angle=np.clip(heading_error,-self.max_steering_angle,self.max_steering_angle)
+        target_heading = vehicle_heading+steering_angle
+        return target_heading, target_point, self.status
 
     def generate_virtual_waypoints(self, num_virtual_points=10):
         virtual_waypoints = []
@@ -93,11 +106,13 @@ class Guidance:
         # becareful when modifying wheel_base, could result in bad steering angle
         wheel_base= 0.1
         steering_angle = np.arctan2(2 * wheel_base * np.sin(heading_error), self.lookahead_distance)
-        max_steering_angle = np.radians(20)
-        steering_angle = np.clip(steering_angle, -max_steering_angle, max_steering_angle)
+        steering_angle = np.clip(steering_angle, -self.max_steering_angle, self.max_steering_angle)
         desired_heading = vehicle_heading + steering_angle
 
-        return desired_heading, target_point
+        if self.current_waypoint_index == (len(self.waypoints)-1):
+            self.status="Guidance Done"
+
+        return desired_heading, target_point, self.status
 
     # Stanley Controller Guidance
     def stanley(self, vehicle_position, vehicle_heading, velocity):
@@ -120,9 +135,8 @@ class Guidance:
         # https://www.ri.cmu.edu/pub_files/2009/2/Automatic_Steering_Methods_for_Autonomous_Automobile_Path_Tracking.pdf
         cross_track_correction = np.arctan2(self.k_e * cross_track_error, velocity)
 
-        max_steering = np.radians(20)
         steering_angle = heading_error - cross_track_correction
-        steering_angle = np.clip(steering_angle, -max_steering, max_steering)
+        steering_angle = np.clip(steering_angle, -self.max_steering_angle, self.max_steering_angle)
         desired_heading = vehicle_heading + steering_angle
 
         # debugging code
@@ -136,7 +150,7 @@ class Guidance:
         # print("Closest Point on Path",_)
          # print("path_heading", np.degrees(path_heading))
 
-        return desired_heading, target_point
+        return desired_heading, target_point, self.status
     
     def calculate_cross_track(self, waypoint1, waypoint2, current_position):
         """
