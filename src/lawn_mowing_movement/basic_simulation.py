@@ -63,6 +63,7 @@ initial_heading = 80.0
 # Simulate LOS
 los_trajectory, los_heading, _ = simulate_guidance(waypoints, 'LOS', initial_position=initial_position, initial_heading=initial_heading)
 print(los_heading)
+
 # Simulate Pure Pursuit
 pp_trajectory, pp_heading, guidance = simulate_guidance(waypoints, 'PP', lookahead_distance=lookahead_distance, initial_position=initial_position, initial_heading=initial_heading)
 

@@ -13,7 +13,7 @@ print("Directory:", file_directory)
 import argparse
 
 class Sensors:
-    def __init__(self, time_step=1):
+    def __init__(self, time_step=0.5):
         UdpIpPort = "udpin:0.0.0.0:14771"
         self.conn = mavutil.mavlink_connection(UdpIpPort)
         self.conn.wait_heartbeat()

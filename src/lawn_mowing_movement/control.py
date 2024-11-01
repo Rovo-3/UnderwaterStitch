@@ -24,11 +24,19 @@ class PID():
         if self.lower == None:
             self.lower=-float("inf")
 
-    def calculate(self, error, interval ,aw=False):
+    def calculate(self, error, interval ,aw=False) -> int:
 
+        """
+        Calculating the PID, returning the output
+        """
+        if interval==-1:
+            print("invalid interval, returning netral")
+            return self.midval
+        
         self.interval = interval
 
         P = self.Kp * error
+        
         I = self.Ki * self.integral
         # filtering D
         if self.Kd != 0.0 and self.Tf > 0.0:
@@ -38,7 +46,7 @@ class PID():
         else:
             # Simple derivative without filtering (fallback)
             D=self.Kd * (error - self.last_error) / self.interval if self.interval != 0 else 0
-
+        print (P,I,D)
         output = P+I+D
         output += self.midval
         # update, error, integral
@@ -50,4 +58,4 @@ class PID():
                 self.integral -= error * self.interval
             output= max(min(output,self.upper),self.lower)
         
-        return output
+        return int(output)
