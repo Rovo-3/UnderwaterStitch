@@ -209,7 +209,7 @@ class Sensors:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-timeStep', type=float, default=1, help='addTimestep')
+    parser.add_argument('-timeStep', type=float, default=0.1, help='addTimestep')
     args = parser.parse_args()
     print("Timestep: ", args.timeStep)
     # update the data

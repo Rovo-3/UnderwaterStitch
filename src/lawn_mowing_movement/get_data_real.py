@@ -5,6 +5,7 @@ from pymavlink import mavutil
 import json
 import socket
 import os
+import math
 
 # Get the directory of the current Python file
 file_directory = os.path.dirname(os.path.abspath(__file__))
@@ -16,14 +17,15 @@ class Sensors:
     def __init__(self, time_step=0.5):
         UdpIpPort = "udpin:0.0.0.0:14771"
         self.conn = mavutil.mavlink_connection(UdpIpPort)
-        self.conn.wait_heartbeat()
+        # self.conn.wait_heartbeat()
         self.boot_time = time.time()
         self.time_step = time_step
-        self.dvl_from_socket = False
+        self.dvl_from_socket = True
         self.is_simulation = False
         # if the getting DVL data from socket
         if self.dvl_from_socket:
             self.dvlhost = '192.168.2.95'
+            self.dvlhost = 'dvl.demo.waterlinked.com'
             self.dvlport = 16171
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.dvlhost,self.dvlport))
@@ -59,17 +61,17 @@ class Sensors:
             "dvl_roll":0,
             "dvl_pitch":0,
             "dvl_yaw":0,
-            "x":0,
-            "y":0,
-            "z":0,
-            "vx":0,
-            "vy":0,
-            "vz":0,
-            "alt":0,
+            "dvl_x":0,
+            "dvl_y":0,
+            "dvl_z":0,
+            "dvl_vx":0,
+            "dvl_vy":0,
+            "dvl_vz":0,
+            "dvl_altitude":0,
             "lat":0,
             "lon":0,
-            "velocity_valid":0,
-            "covariance":0,
+            "dvl_velocity_valid":0,
+            "dvl_covariance":0,
         }
         # self.createHeader()
 
@@ -87,7 +89,7 @@ class Sensors:
             self.getPosition()
             self.getAttitude()
         # getDVLMav has yet tested
-        self.getDVLSocket() if self.dvl_from_socket else self.getDVLMav()
+        # self.getDVLSocket() if self.dvl_from_socket else self.getDVLMav()
         self.data_log["Date"] = date
         self.data_log["Time"] = time_now
 
@@ -137,7 +139,7 @@ class Sensors:
         except Exception as e:
             print("Cannot get dvl position delta from the mavlink data")
         try:
-            dvl_position_data = self.conn.recv_match(type="GLOBAL_VISION_POSITION_ESTIMATE", blocking=True)
+            dvl_position_data = self.conn.recv_match(type="GLOBAL_VISION_POSITION_ESTIMATE", blocking=False)
             if dvl_position_data is not None:
                 dvl = dvl_position_data.to_dict()
                 print(dvl)
@@ -151,7 +153,7 @@ class Sensors:
             print("Error: ", e)
             print("Cannot get dvl position from the mavlink data")
         try:
-            dvl_speed_data = self.conn.recv_match(type="VISION_SPEED_ESTIMATE", blocking=True)
+            dvl_speed_data = self.conn.recv_match(type="VISION_SPEED_ESTIMATE", blocking=False)
             if dvl_speed_data is not None:
                 dvl = dvl_speed_data.to_dict()
                 print(dvl)
@@ -173,7 +175,7 @@ class Sensors:
         # belum ada altitude 
         # https://github.com/bluerobotics/BlueOS-Water-Linked-DVL/blob/master/dvl-a50/mavlink2resthelper.py
         try:
-            altitude = self.conn.recv_match(type="DISTANCE_SENSOR", blocking=True)
+            altitude = self.conn.recv_match(type="DISTANCE_SENSOR", blocking=False)
             if altitude is not None:
                 dvl = altitude.to_dict()
                 self.data_log["alt"] = dvl["current_distance"]
@@ -185,25 +187,32 @@ class Sensors:
             data = self.socket.recv(2048).decode('utf-8')
             if data:
                 jsonData= json.loads(data)
-                # print(jsonData)
+                print(jsonData)
                 try:
                     data_list={
                                 "altitude":0,
-                                "roll":0,
-                                "pitch":0,
-                                "yaw":0,
                                 "x":0,
                                 "y":0,
                                 "z":0,
                                 "vx":0,
                                 "vy":0,
                                 "vz":0,
+                                "altitude":0,
                                 "velocity_valid":0,
                                 "covariance":0,
                                 }
                     for key in data_list.keys():
                         if key in jsonData and jsonData[key] is not None:
-                            self.data_log[key] = jsonData[key]
+                            self.data_log["dvl_"+key] = jsonData[key]
+                    data_angle={
+                                "roll":0,
+                                "pitch":0,
+                                "yaw":0,
+                                }
+                    for key in data_angle.keys():
+                        if key in jsonData and jsonData[key] is not None:
+                            angle_in_rad = math.radians(jsonData[key])
+                            self.data_log["dvl_"+key] = angle_in_rad
                 except: 
                     pass
         # data might not be available
@@ -257,23 +266,23 @@ class Sensors:
             data = json.load(target_file)
         data["Date"] = str(self.data_log["Date"])
         data["Time"] = str(self.data_log["Time"])
-        data["DVL"]["x"] = self.data_log["y"]
-        data["DVL"]["y"] = self.data_log["x"]
-        data["DVL"]["z"] = self.data_log["z"]
-        data["DVL"]["vx"] = self.data_log["vx"]
-        data["DVL"]["vy"] = self.data_log["vy"]
-        data["DVL"]["vz"] = self.data_log["vz"]
-        data["DVL"]["roll"] = self.data_log["roll"]
-        data["DVL"]["pitch"] = self.data_log["pitch"]
-        data["DVL"]["yaw"] = self.data_log["yaw"]
-        data["DVL"]["alt"] = self.data_log["alt"]
+        data["DVL"]["x"] = self.data_log["dvl_y"]
+        data["DVL"]["y"] = self.data_log["dvl_x"]
+        data["DVL"]["z"] = self.data_log["dvl_z"]
+        data["DVL"]["vx"] = self.data_log["dvl_vx"]
+        data["DVL"]["vy"] = self.data_log["dvl_vy"]
+        data["DVL"]["vz"] = self.data_log["dvl_vz"]
+        data["DVL"]["roll"] = self.data_log["dvl_roll"]
+        data["DVL"]["pitch"] = self.data_log["dvl_pitch"]
+        data["DVL"]["yaw"] = self.data_log["dvl_yaw"]
+        data["DVL"]["alt"] = self.data_log["dvl_altitude"]
         data["depth"] = self.data_log["depth"]
         with open(self.file_name, "w") as target_file:
             json.dump(data, target_file, indent=4)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-timeStep', type=float, default=1, help='addTimestep')
+    parser.add_argument('-timeStep', type=float, default=0.1, help='addTimestep')
     args = parser.parse_args()
     print("Timestep: ", args.timeStep)
     # update the data

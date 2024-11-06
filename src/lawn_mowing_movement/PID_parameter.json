@@ -5,13 +5,18 @@
         "kd": 0
     },
     "Yaw": {
-        "kp": 40,
-        "ki": 0.2,
+        "kp": 200,
+        "ki": 0,
         "kd": 0
     },
     "Depth": {
         "kp": 100,
         "ki": 3,
-        "kd": 0
+        "kd": 30
+    },
+    "Setpoint":{
+        "depth":4,
+        "yaw":0,
+        "forward_speed":0
     }
 }
