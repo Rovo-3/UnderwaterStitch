@@ -172,8 +172,8 @@ def commandStitch(img_num, HomMatx):
     blendedRegion = cv2.addWeighted(
         arrimage[img_num], alpha, stitchedimg[0:h1, 0:w1], 1 - alpha, 0
     )
-    
-    img2Warped[0:h1, 0:w1] = blendedRegion # arrimage[img_num]
+
+    img2Warped[0:h1, 0:w1] = blendedRegion  # arrimage[img_num]
     stitchedimg = resizeImage(img2Warped, 0.4)
 
     return stitchedimg
@@ -229,8 +229,9 @@ brisk = cv2.BRISK.create()
 akaze = cv2.AKAZE.create()
 
 # imagePaths = natsorted(list(glob.glob("../../Images/2ndfloor/*")), reverse=False)
-imagePaths = natsorted(list(glob.glob("../../Images/seaTrial30pics/*")), reverse=True)
+# imagePaths = natsorted(list(glob.glob("../../Images/yaw7pool/*")), reverse=False)
 # imagePaths = natsorted(list(glob.glob("../dumdum/*")))
+imagePaths = natsorted(list(glob.glob("./st2/*")), reverse=False)
 
 arrimage = []
 arrkeypoints = []
@@ -242,17 +243,18 @@ if __name__ == "__main__":
 
     for imgs in imagePaths:
         readImage = cv2.imread(imgs)
-        readImage = resizeImage(readImage, 1)
+        # readImage = resizeImage(readImage, 1)
+
+        arrimage.append(readImage)
         readImage = imagePreProcess(readImage, 0, (1, 1), False)
 
         cvtColorImg = cv2.cvtColor(readImage, cv2.COLOR_BGR2GRAY)
         keypoint, descr = detectorKeypoint(sift, cvtColorImg)
         print(f"Images: ({len(arrimage)+1}/{len(imagePaths)})")
 
-        drawnKeypoints = cv2.drawKeypoints(
-            readImage, keypoint, None, color=(255, 255, 0)
-        )
-        arrimage.append(readImage)
+        # drawnKeypoints = cv2.drawKeypoints(
+        #     readImage, keypoint, None, color=(255, 255, 0)
+        # )
         arrdescriptors.append(descr)
         arrkeypoints.append(keypoint)
 
@@ -261,14 +263,13 @@ if __name__ == "__main__":
             break
 
         # Revise here to be using mask ==================
-        img_matches, matchess = BFMatch(imagenumber, 5000)
+        img_matches, matchess = BFMatch(imagenumber, 500)
         print(
             f"Image {imagenumber+1}: {len(arrkeypoints[imagenumber])} with {imagenumber+2}: {len(arrkeypoints[imagenumber+1])}"
         )
 
-        confidence, HomogMatx = homMatrix(
-            imagenumber, matchess
-        )  # <--- Revise the stitching using the masked inliners, take out any pictures with low inlier, then try stitching.
+        confidence, HomogMatx = homMatrix(imagenumber, matchess)
+        # <--- Revise the stitching using the masked inliners, take out any pictures with low inlier, then try stitching.
         # can also try to use the KNN matcher
         # Revise here to be using mask ==================
         print("======================================================")
@@ -288,8 +289,8 @@ if __name__ == "__main__":
                 2,
             )
             stitchedimg = trim_black_borders(stitchedimg)
-            cv2.imshow("stitched", stitchedimg)
-            cv2.waitKey(1000)
+            # cv2.imshow("stitched", stitchedimg)
+            # cv2.waitKey(1000)
         else:
             print("Not Stitched")
             test.append(imagenumber + 1)

@@ -342,13 +342,13 @@ if __name__ == "__main__":
         arrimgname.append(image)
         arrdescriptors.append(imageDescriptor)
         arrkeypoints.append(imageKeypoint)
-        
+
         print(f"Extracting Images: ({len(arrimage)}/{len(imagePaths)})")
-        
+
     print(f"Total Image In Folder: {len(imagePaths)}")
     print(f"Blur Images: {len(imagePaths) - len(arrimage)}")
     print(f"Total Images Now: {len(arrimage)}")
-    # ========================================================================================
+    
     for i in range(len(arrimage)):
         arrconfidence = []
         for j in range(len(arrimage)):
@@ -367,13 +367,10 @@ if __name__ == "__main__":
 
     newOrderIdx = generateOrderedImages(matxConf)
     print(newOrderIdx)
-    # ========================================================================================
+    
 
     for i in range(len(arrimage)):
         newImmageOrder.append(arrimage[newOrderIdx[i]])
-        # cv2.imshow("new img", new_img_order[i])
-        # cv2.waitKey(0)
-
 
     stitched_image = stitchCentral(brisk, newImmageOrder)
 

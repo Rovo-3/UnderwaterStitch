@@ -73,6 +73,8 @@ def BFMatch(matcher, img, stitchKeypoints, stitchDescriptor, img_num, nmatches=5
         flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS,
     )
     # print(f"image {img_num} with image {img_num+1}: {len(matches)}")
+    cv2.imshow("Matches", resizeImage(img_matches, 0.5))
+    cv2.waitKey(0)
 
     return img_matches, matches[:nmatches]
 
@@ -205,7 +207,7 @@ brisk = cv2.BRISK.create()
 akaze = cv2.AKAZE.create()
 
 # imagePaths = natsorted(list(glob.glob("../../Images/2ndfloor/*")), reverse=False)
-imagePaths = natsorted(list(glob.glob("./st1/*")), reverse=False)
+imagePaths = natsorted(list(glob.glob("./st2/*")), reverse=False)
 
 arrimage, arrkeypoints, arrdescriptors = [], [], []
 
@@ -219,12 +221,12 @@ if __name__ == "__main__":
     for imgs in imagePaths:
         readImage = cv2.imread(imgs)
         readImage = resizeImage(readImage, 1)
+        arrimage.append(readImage)
         readImage = imagePreProcess(readImage, 0, (1, 1), False)
 
         keypoint, descr, _ = detectorKeypoint(brisk, readImage)
         print(f"Load Images: ({len(arrimage)+1}/{len(imagePaths)})")
 
-        arrimage.append(readImage)
         arrdescriptors.append(descr)
         arrkeypoints.append(keypoint)
 
