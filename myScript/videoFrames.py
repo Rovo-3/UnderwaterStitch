@@ -40,8 +40,8 @@ def get_center_roi(image, roi_width_ratio=0.8, roi_height_ratio=0.8):
     return roi
 
 
-vid_name = "VID2"
-saved_path = "../Images/vidframes/"# + vid_name
+vid_name = "strafe4pool"
+saved_path = "../Images/" + vid_name# + vid_name
 vid_path = "../VID/" + vid_name + ".mp4"
 cam = cv2.VideoCapture(vid_path)
 frame_count = 0
@@ -65,7 +65,7 @@ while True:
         ret, cap = cam.read()
         image = cap
 
-        blurlevel, text = detectBlur(image, 110)
+        # blurlevel, text = detectBlur(image, 110)
         # cv2.putText(
         #     image,
         #     "{}: {:.2f}".format(text, blurlevel),
@@ -76,9 +76,9 @@ while True:
         #     3,
         # )
 
-        if text == "Blurry":
-            frame_count = frame_count*frame_skip
-            continue
+        # if text == "Blurry":
+        #     frame_count = frame_count*frame_skip
+        #     continue
 
         now = datetime.now()
         date = now.strftime("%y%m%d_%H%M%S")
@@ -91,5 +91,5 @@ while True:
         frame_count += 1
 
     except:
-        print("fail!")
+        print("Fail or Done.. idk..")
         break

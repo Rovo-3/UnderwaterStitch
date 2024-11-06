@@ -3,8 +3,12 @@ import numpy as np
 import imutils
 import cv2
 import datetime
+import time
 from natsort import natsorted
 import glob
+
+start = time.time()
+end = 0
 
 outpath = (
     "../Results/"
@@ -75,9 +79,9 @@ if __name__ == "__main__":
 
     for imagePath in imagePaths:
         image = cv2.imread(imagePath)
-        image = ImageProcessor(0.3)
+        ip = ImageProcessor(1)
 
-        processedimage = ImageProcessor.imagePreProcess(image)
+        processedimage = ip.imagePreProcess(image)
         # processedimage = wb_opencv(image)
         # cv2.imshow("images",processedimage)
         # cv2.waitKey(0)
@@ -86,31 +90,35 @@ if __name__ == "__main__":
 
     print("[INFO] stitching images...")
     # print(images)
-    scan = cv2.Stitcher_SCANS
-    pano = cv2.Stitcher_PANORAMA
-    (status, stitched) = cv2.Stitcher.create(scan).stitch(images)
+    # scan = cv2.Stitcher_SCANS
+    # pano = cv2.Stitcher_PANORAMA
+    # (status, stitched) = cv2.Stitcher.create(scan).stitch(images)
 
-    # settings = {
-    #     "detector": "sift",
-    #     "confidence_threshold": 0.5
-    #     # "blender_type": "feather",
-    #     # "crop": False,
-    #     # "no-crop": "True",
-    #     # "wave_correct_kind": "auto"
-    #     # "try_use_gpu": True
-    # }
-    # stitcher = Stitcher(**settings)
-    # stitched = stitcher.stitch(images)
+    settings = {
+        "detector": "sift",
+        "confidence_threshold": 0.5
+        # "blender_type": "feather",
+        # "crop": False,
+        # "no-crop": "True",
+        # "wave_correct_kind": "auto"
+        # "try_use_gpu": True
+    }
+    stitcher = Stitcher(**settings)
+    stitched = stitcher.stitch(images)
 
-    if status == 0:
-        print("[INFO] save stitching...")
-        cv2.imwrite(outpath, stitched)
+    # if status == 0:
+    print("[INFO] save stitching...")
+    cv2.imwrite(outpath, stitched)
 
-        print("[INFO] displayed stitching...")
-        cv2.namedWindow("Stitched", cv2.WINDOW_NORMAL)
-        cv2.resizeWindow("Stitched", 1280, 720)
-        cv2.imshow("Stitched", stitched)
-        cv2.waitKey(0)
+    print("[INFO] displayed stitching...")
+    cv2.namedWindow("Stitched", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("Stitched", 1280, 720)
+    cv2.imshow("Stitched", stitched)
+    cv2.waitKey(500)
 
-    else:
-        print("[INFO] image stitching failed ({})".format(status))
+    # else:
+    #     print("[INFO] image stitching failed ({})".format(status))
+
+print("=== DONE ===")
+end = time.time()
+print(f"Time elapsed: {end-start}")
