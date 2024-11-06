@@ -13,9 +13,13 @@ class Guidance:
         self.distance_treshold = distance_treshold
         self.dt = dt
         self.max_steering_angle = np.radians(30)
-        self.status="Going to WP: " + str(self.current_waypoint_index)
+        self.update_status()
+        self.distance_to_wp = 0
         if generate_virtual_wp:
             self.generate_virtual_waypoints()
+
+    def update_status(self):
+        self.status="Going to WP: " + str(self.current_waypoint_index)
 
     # Update waypoint index when close enough to the current waypoint
     def update_waypoint(self, vehicle_position):
@@ -23,13 +27,18 @@ class Guidance:
         # calculate the distance
         distance_to_wp = np.linalg.norm(np.array(vehicle_position) - np.array(current_wp))
         # check the distance
+        print(f"distance to WP {self.current_waypoint_index}: ",distance_to_wp)
+        self.update_status()
         if distance_to_wp < self.distance_treshold:
             # if its not the last waypoint, go to next waypoint by increase the index
-            if self.current_waypoint_index < len(self.waypoints) - 1:
+            if self.current_waypoint_index < (len(self.waypoints) -1):
                 self.current_waypoint_index += 1
+                print("next_wp")
             # else, done
             else:
                 self.status="Guidance Done"
+        self.distance_to_wp = distance_to_wp
+        return distance_to_wp
 
     # Line-of-Sight Guidance
     def los(self, vehicle_position, vehicle_heading):
@@ -40,8 +49,8 @@ class Guidance:
         dy = target_point[1] - vehicle_position[1]
         
         target_heading = (np.arctan2(dx, dy))
-        print("Here is the guidance")
-        print(dx,dy)
+        # print("Here is the guidance")
+        # print(dx,dy)
         # print(target_heading)
         heading_error = target_heading-vehicle_heading
         heading_error = np.arctan2(np.sin(heading_error), np.cos(heading_error))
@@ -83,7 +92,7 @@ class Guidance:
                 break
 
         target_point = self.waypoints[self.current_waypoint_index]
-        print("Mantap Dapat target point")
+        # print("Mantap Dapat target point")
         # x and y position error
         dx = target_point[0] - vehicle_position[0]
         dy = target_point[1] - vehicle_position[1]
@@ -123,8 +132,8 @@ class Guidance:
         cross_track_error, _ = self.calculate_cross_track(prev_target_point, target_point, vehicle_position)
         
         # calculate the path heading
-        dx = target_point[0] - prev_target_point[0]
-        dy = target_point[1] - prev_target_point[1]
+        dx = target_point[0] - vehicle_position[0]
+        dy = target_point[1] - vehicle_position[1]
         path_heading = np.arctan2(dx, dy)
         # heading error = path_heading-vehicle
         heading_error = path_heading-vehicle_heading
@@ -141,10 +150,10 @@ class Guidance:
 
         # debugging code
         # print("vehicle_heading", np.degrees(vehicle_heading))
-        # print("heading_error", np.degrees(heading_error))
+        print("heading_error", np.degrees(heading_error))
         # print("cross_track_correction", np.degrees(cross_track_correction))
         # print("Prev target point", prev_target_point)
-        # print("Target point", target_point)
+        print("Target point", target_point)
         # print("Vehicle Position",vehicle_position)
         # print("Cross_track_error",cross_track_error)
         # print("Closest Point on Path",_)
