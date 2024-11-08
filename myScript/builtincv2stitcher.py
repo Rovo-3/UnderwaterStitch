@@ -13,7 +13,7 @@ end = 0
 outpath = (
     "../Results/"
     + datetime.datetime.now().strftime("%m-%d-%Y-%H-%M-%S")
-    + "_stitched.png"
+    + "_prebuilt.png"
 )
 
 
@@ -67,8 +67,9 @@ class ImageProcessor:
 
 
 print("[INFO] loading images...")
-# imagePaths = natsorted(list(glob.glob("../Images/seaTrial30pics/*")))
-imagePaths = natsorted(list(glob.glob("../myScript/Trials/st2/*")))
+path = "../Images/TestSet/set6-rovpool2/*"
+imagePaths = natsorted(list(glob.glob(path)))
+# imagePaths = natsorted(list(glob.glob("../myScript/Trials/st2/*")))
 # imagePaths = natsorted(list(glob.glob("./dumdum/*")))
 
 totalImages = len(imagePaths)
@@ -109,6 +110,7 @@ if __name__ == "__main__":
     if status == 0:
         print("[INFO] save stitching...")
         cv2.imwrite(outpath, stitched)
+        print(outpath)
 
         print("[INFO] displayed stitching...")
         cv2.namedWindow("Stitched", cv2.WINDOW_NORMAL)

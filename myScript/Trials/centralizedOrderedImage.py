@@ -355,8 +355,8 @@ imagescale = 1
 ip = ImageProcessor(imagescale)
 dmc = DetectMatchConfidence()
 
-path = "./st2/*"
-imagePaths = list(glob.glob(path))
+path = "./st1/*"
+imagePaths = natsorted(list(glob.glob(path)))
 print(f"Images Path: {path}")
 
 arrimage = []
@@ -428,7 +428,7 @@ if __name__ == "__main__":
 
             # Normal
             elif method == "bf":
-                matches = dmc.BFMatch(arrdescriptors[i], j, nmatches=700)
+                matches = dmc.BFMatch(arrdescriptors[i], j, nmatches=2000)
                 confidence = dmc.findConfidenceMatch(arrkeypoints[i], j, matches)
 
             print(f"{i+1} :: {j+1} == {confidence}")
