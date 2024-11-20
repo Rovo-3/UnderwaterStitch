@@ -12,75 +12,8 @@ from ImageProcessor import ImageProcessor
 from StitchCentral import StitchCentral
 from ProcessPairingImage import ProcessPairingImage
 
+
 programstart = time.time()
-
-
-def laplacianBlending(img1, img2, levels=4):
-    # Generate Gaussian pyramid for img1
-    G1 = img1.copy()
-    gp1 = [G1]
-    for i in range(levels):
-        G1 = cv2.pyrDown(G1)
-        gp1.append(G1)
-
-    # Generate Gaussian pyramid for img2
-    G2 = img2.copy()
-    gp2 = [G2]
-    for i in range(levels):
-        G2 = cv2.pyrDown(G2)
-        gp2.append(G2)
-
-    # Generate Laplacian pyramid for img1
-    lp1 = [gp1[levels]]
-    for i in range(levels, 0, -1):
-        GE1 = cv2.pyrUp(gp1[i])
-        # Resize GE1 to match gp1[i - 1]
-        GE1 = cv2.resize(GE1, (gp1[i - 1].shape[1], gp1[i - 1].shape[0]))
-        L1 = cv2.subtract(gp1[i - 1], GE1)
-        lp1.append(L1)
-
-    # Generate Laplacian pyramid for img2
-    lp2 = [gp2[levels]]
-    for i in range(levels, 0, -1):
-        GE2 = cv2.pyrUp(gp2[i])
-        # Resize GE2 to match gp2[i - 1]
-        GE2 = cv2.resize(GE2, (gp2[i - 1].shape[1], gp2[i - 1].shape[0]))
-        L2 = cv2.subtract(gp2[i - 1], GE2)
-        lp2.append(L2)
-
-    # Now blend the Laplacian pyramids
-    LS = []
-    for l1, l2 in zip(lp1, lp2):
-        rows, cols, dpt = l1.shape
-        ls = np.hstack((l1[:, : cols // 2], l2[:, cols // 2 :]))
-        LS.append(ls)
-
-    # Reconstruct the image
-    blended_image = LS[0]
-    for i in range(1, levels + 1):
-        blended_image = cv2.pyrUp(blended_image)
-        # Resize to match the current level
-        blended_image = cv2.resize(blended_image, (LS[i].shape[1], LS[i].shape[0]))
-        blended_image = cv2.add(blended_image, LS[i])
-
-    return blended_image
-
-
-def uniformBslend(img1, img2):
-    # grayscale
-    gray1 = np.mean(img1, axis=-1)
-    gray2 = np.mean(img2, axis=-1)
-    result = img1.astype(np.float64) + img2.astype(np.float64)
-
-    g1, g2 = gray1 > 0, gray2 > 0
-    g = g1 & g2
-    mask = np.expand_dims(g * 0.5, axis=-1)
-    mask = np.tile(mask, [1, 1, 3])
-    mask[mask == 0] = 1
-    result *= mask
-    result = result.astype(np.uint8)
-
-    return result
 
 
 def findTransformed(i, homography):
@@ -192,7 +125,7 @@ method = "bf"
 ip = ImageProcessor()
 dmc = DetectMatchConfidence()
 sc = StitchCentral()
-ppi = ProcessPairingImage(method=method, dmc=dmc)
+ppi = ProcessPairingImage(method=method)
 
 path = "./Images/2ndfloor/*"
 # path = "./Images/TestSet/set4-rovPool/*"
