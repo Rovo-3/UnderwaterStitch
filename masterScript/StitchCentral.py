@@ -189,12 +189,6 @@ class StitchCentral:
             mask = gray > 0
             combined_img[mask] = masked[mask]
 
-            # cv2.imshow("Feathered_image",feathered_image)
-            # cv2.imshow("combined result before",combined_img)
-            # cv2.imshow("overlap_mask",overlap_mask)
-            # cv2.imshow("masked image",masked)
-            # cv2.imshow("combined result after",combined_img)
-            # cv2.waitKey(0)
             feathered_image = combined_img
 
         return feathered_image  
