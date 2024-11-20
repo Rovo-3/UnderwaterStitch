@@ -12,7 +12,6 @@ class StitchCentral:
         assert (
             base_img.shape == new_img.shape
         ), "Images must have the same shape for overlaying."
-        
         base_gray = cv2.cvtColor(base_img, cv2.COLOR_BGR2GRAY)
         gray = cv2.cvtColor(new_img, cv2.COLOR_BGR2GRAY)
 
@@ -26,10 +25,12 @@ class StitchCentral:
             edge_mask=masks[0]
             inner_mask=masks[1][0]
             kernel = masks[1][1]
-      
+
             edge_mask_gray = cv2.cvtColor(edge_mask.copy(), cv2.COLOR_BGR2GRAY)
             inner_mask_gray = cv2.cvtColor(inner_mask.copy(), cv2.COLOR_BGR2GRAY)
             _, binary = cv2.threshold(base_gray.copy(), 1, 255, cv2.THRESH_BINARY)
+            print(inner_mask.shape)  # Check the shape of the inner_mask
+            print(binary.shape)      # Check the shape of the binary mask
 
             edge_mask_dilated=cv2.dilate(edge_mask_gray,None, iterations=int(self.offset*2))
             overlap_mask = cv2.bitwise_and(edge_mask_dilated, binary)
@@ -41,12 +42,6 @@ class StitchCentral:
         mask = gray > 0
         base_img[mask] = new_img[mask]
         combined_img = base_img
- 
-        # cv2.imshow("Img:", base_img)
-        # # cv2.imshow("new Img:", new_img)
-        # cv2.imshow("With Gaussian Blur:", output)
-        # cv2.imshow("With Feathering:", output2)
-        # cv2.waitKey(0)
 
         return combined_img
 
@@ -182,7 +177,6 @@ class StitchCentral:
         blurred_mask  = cv2.GaussianBlur(mask,kernel,0)
         feathered_mask_normalized = blurred_mask / 255.0  # Normalize to range [0, 1]
 
-        # convert to 3dimension
         feathered_image = (base_img * (1 - feathered_mask_normalized) + overlay_img * feathered_mask_normalized).astype(np.uint8)   
 
         if overlap_mask is not None:
@@ -193,12 +187,12 @@ class StitchCentral:
             mask = gray > 0
             combined_img[mask] = masked[mask]
 
-            cv2.imshow("Feathered_image",feathered_image)
-            cv2.imshow("combined result before",combined_img)
-            cv2.imshow("overlap_mask",overlap_mask)
-            cv2.imshow("masked image",masked)
-            cv2.imshow("combined result after",combined_img)
-            cv2.waitKey(0)
+            # cv2.imshow("Feathered_image",feathered_image)
+            # cv2.imshow("combined result before",combined_img)
+            # cv2.imshow("overlap_mask",overlap_mask)
+            # cv2.imshow("masked image",masked)
+            # cv2.imshow("combined result after",combined_img)
+            # cv2.waitKey(0)
             feathered_image = combined_img
 
         return feathered_image  
