@@ -10,9 +10,9 @@ from natsort import natsorted
 from DetectMatchConfidence import DetectMatchConfidence
 from ImageProcessor import ImageProcessor
 from StitchCentral import StitchCentral
+from ProcessPairingImage import ProcessPairingImage
 
-start = time.time()
-end = 0
+programstart = time.time()
 
 
 def laplacianBlending(img1, img2, levels=4):
@@ -106,9 +106,33 @@ def findBestMatch(current_image, excluded_images, matrix):
     best_match = None
     best_score = -1
     for img_idx, score in enumerate(matrix[current_image]):
-        if img_idx not in excluded_images and score > best_score:
-            best_match = img_idx
-            best_score = score
+
+        if isinstance(score, list) and isinstance(best_score, list):
+            # print(1)
+            if img_idx not in excluded_images and score[0] > best_score[0]:
+                best_match = img_idx
+                best_score = score
+
+        elif isinstance(best_score, list):
+            # print(2)
+            if img_idx not in excluded_images and score > best_score[0]:
+                best_match = img_idx
+                best_score = score
+
+        elif isinstance(score, list):
+            # print(3)
+            if img_idx not in excluded_images and score[0] > best_score:
+                best_match = img_idx
+                best_score = score
+        else:
+            # print(4)
+            # print(f"score {score} :: best_score {best_score}")
+            if img_idx not in excluded_images and score > best_score:
+                best_match = img_idx
+                best_score = score
+            # print(f"score {score} :: best_score {best_score}")
+
+    # print(f"return best match : {best_match}")
     return best_match
 
 
@@ -120,41 +144,65 @@ def generateOrderedImages(matrix):
     order = [current_image]
 
     while len(order) < len(matrix):
+        # print(f"({len(order)}/{len(matrix)})")
+        # time.sleep(1)
+        # print(f"matx {len(matrix)}")
+        # print(order)
+
         left_best = findBestMatch(order[0], order, matrix)
         right_best = findBestMatch(order[-1], order, matrix)
+
+        # print(f"left {left_best} :: right {right_best}")
 
         if left_best is not None and right_best is not None:
             left_score = matrix[order[0]][left_best]
             right_score = matrix[order[-1]][right_best]
 
-            if left_score > right_score:
+            if left_score >= right_score:
                 order.insert(0, left_best)
+
             else:
                 order.append(right_best)
+
         elif left_best is not None:
             order.insert(0, left_best)
+
         elif right_best is not None:
             order.append(right_best)
 
+        elif left_best is None or right_best is None:
+            print("Loop Error, left or right best is none")
+            print(order)
+            break
+            # continue
+
+    # print("return order")
     return order
+
+
+def showFinalImage(stitched_image):
+    stitched_image = ip.resizeImage(stitched_image, 0.5)
+    cv2.namedWindow("stitched_output", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("stitched_output", 1280, 720)
+    cv2.imshow("stitched_output", stitched_image)
+    cv2.waitKey(0)
 
 
 method = "bf"
 ip = ImageProcessor()
 dmc = DetectMatchConfidence()
 sc = StitchCentral()
+ppi = ProcessPairingImage(method=method, dmc=dmc)
 
-# path = "../Images/TestSet/set6-rovpool2/*"
-# path = "../Images/TestSet/set5-rovpool/*"
-# path = "../myScript/Trials/st2/*"
-path = "./imgTest"
+path = "./Images/2ndfloor/*"
+# path = "./Images/TestSet/set4-rovPool/*"
+# path = "./imgTest"
 imagePaths = natsorted(list(glob.glob(path)))
-print(f"Images Path: {path} || Method: {method}")
 
-arrimage = []
-arrimgname, arrkeypoints, arrdescriptors = [], [], []
-newOrderIdx = []
-matxConf = []
+arrimgname, arrimage = [], []
+arrkeypoints, arrdescriptors = [], []
+# newOrderIdx = []
+# matxConf = []
 
 heightth = []
 widthth = []
@@ -164,21 +212,30 @@ orb = cv2.ORB.create()  # cv2.NORM_HAMMING
 brisk = cv2.BRISK.create()  # cv.NORM_L2
 akaze = cv2.AKAZE.create()  # cv.NORM_L2
 
+# datapath = "./2ndfloor.npz"
+# data = np.load(datapath)
 
 if __name__ == "__main__":
+    print(f"Images Path: {path} || Method: {method}")
     print("loading images..")
+
+    detector = brisk
+
+    start = time.time()
     for image in imagePaths:
+        # for image in data.files:
         readImage = cv2.imread(image)
-        readImage = ip.rotateImage(readImage)
+        # readImage = data[image]
+        # readImage = ip.rotateImage(readImage)
         readImage = ip.resizeImage(readImage)
         readImage = ip.imagePreProcess(readImage)
 
         blurlevel = ip.detectBlur(readImage)
-        if blurlevel < 0:
+        if blurlevel < 100:
             print(blurlevel)
             continue
 
-        imageKeypoint, imageDescriptor = dmc.detectorKeypoint(brisk, readImage)
+        imageKeypoint, imageDescriptor = dmc.detectorKeypoint(detector, readImage)
 
         arrimage.append(readImage)
         arrimgname.append(image)
@@ -187,51 +244,34 @@ if __name__ == "__main__":
 
         # print(f"Extracting Images: ({len(arrimage)}/{len(imagePaths)})")
 
+    totalimage = len(arrimage)
+    totaliterations = totalimage * (totalimage - 1)
+
+    print(f"Time loading iamges: {time.time()-start}")
     print(f"Total Image In Folder: {len(imagePaths)}")
-    print(f"Blur Images: {len(imagePaths) - len(arrimage)}")
-    print(f"Total Images Now: {len(arrimage)}")
+    print(f"Blur Images: {len(imagePaths) - totalimage}")
+    print(f"Total Images Now: {totalimage}")
 
-    for i in range(len(arrimage)):
-        arrconfidence = []
-        for j in range(len(arrimage)):
+    start = time.time()
 
-            """
-            # nmatches a.k.a number of matches, the higher the value will make the stitching and pairing more accurate
-            # also note that the bigger the number of nmatches the longer the time will be to be calculated.
-            # reccomended is 2000 matches for most images.
-            """
+    if totaliterations > 5000:
+        process = "Parallel"
+        print(process)
+        matxConf = ppi.imageOrderByConf_Multi(
+            totalimage, arrimgname, arrdescriptors, arrkeypoints
+        )
 
-            if arrimgname[i] == arrimgname[j]:
-                confidence = 0
-                arrconfidence.append(int(confidence))
-                continue
+    else:
+        process = "Single"
+        print(process)
+        matxConf = ppi.imageOrderByConf_Single(
+            totalimage, arrimgname, arrdescriptors, arrkeypoints
+        )
 
-            # KNN
-            if method == "knn":
-                try: 
-                    matches = dmc.BFMatchKNN(arrdescriptors[i], j, arrdescriptors)
-                    confidence = dmc.knnConfidenceMatch(
-                        matches, arrkeypoints[i], j, arrkeypoints
-                    )
-                except:
-                    confidence = 0
+    print(f"Time confidence ordered: {time.time()-start}")
+    time.sleep(3)
 
-            # Normal
-            elif method == "bf":
-                matches = dmc.BFMatch(
-                    arrdescriptors[i], j, arrdescriptors, nmatches=500
-                )
-                confidence = dmc.findConfidenceMatch(
-                    matches, arrkeypoints[i], j, arrkeypoints
-                )
-
-            arrconfidence.append(int(confidence * 1000))
-
-        print(f"({i+1}/{len(arrimage)})")
-
-        conf = max(arrconfidence)
-        confIndex = arrconfidence.index(conf)
-        matxConf.append(arrconfidence)
+    # print(matxConf)
 
     newOrderIdx = generateOrderedImages(matxConf)
     print(newOrderIdx)
@@ -247,24 +287,24 @@ if __name__ == "__main__":
     """
 
     print("central")
-    stitched_image = sc.stitchCentral(brisk, newImageOrder, allowedPixels=5)
+    start = time.time()
+    stitched_image = sc.stitchCentral(detector, newImageOrder, allowedPixels=5)
+    print(f"Time stitching: {time.time()-start}")
 
     cv2.imwrite(
-        f"./Results/{datetime.datetime.now().strftime("%m-%d-%Y-%H-%M-%S")}_st_{method}.png",
+        f"./Results/{datetime.datetime.now().strftime("%m-%d-%Y-%H-%M-%S")}_st_{process}_{method}.png",
         stitched_image,
     )
-    print(f"./Results/{datetime.datetime.now().strftime("%m-%d-%Y-%H-%M-%S")}_st_{method}.png")
+    print(
+        f"./Results/{datetime.datetime.now().strftime("%m-%d-%Y-%H-%M-%S")}_st_{process}_{method}.png"
+    )
 
     # print(heightth)
     print()
     # print(widthth)
 
     print("=== DONE ===")
-    end = time.time()
-    print(f"Time elapsed: {end-start}")
+    print(f"Process : ")
+    print(f"Time elapsed: {time.time()-programstart}")
 
-    stitched_image = ip.resizeImage(stitched_image, 0.5)
-    cv2.namedWindow("stitched_output", cv2.WINDOW_NORMAL)
-    cv2.resizeWindow("stitched_output", 1280, 720)
-    cv2.imshow("stitched_output", stitched_image)
-    cv2.waitKey(0)
+    # showFinalImage(stitched_image)
