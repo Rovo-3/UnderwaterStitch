@@ -6,8 +6,8 @@ from DetectMatchConfidence import DetectMatchConfidence
 
 
 class ProcessPairingImage:
-    def __init__(self, method, dmc):
-        self.dmc = dmc
+    def __init__(self, method):
+        self.dmc = DetectMatchConfidence()
         self.method = method
 
     def keypoints_to_tuple(self, keypoints):

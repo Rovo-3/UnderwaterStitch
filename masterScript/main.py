@@ -125,7 +125,7 @@ method = "bf"
 ip = ImageProcessor()
 dmc = DetectMatchConfidence()
 sc = StitchCentral()
-ppi = ProcessPairingImage(method=method, dmc=dmc)
+ppi = ProcessPairingImage(method=method)
 
 path = "./Images/2ndfloor/*"
 # path = "./Images/TestSet/set4-rovPool/*"
