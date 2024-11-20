@@ -4,6 +4,7 @@ import numpy as np
 
 class StitchCentral:
     def __init__(self):
+
         # added by Jason
         self.first=True
         self.offset = 80
@@ -49,6 +50,7 @@ class StitchCentral:
         # cv2.waitKey(0)
 
         return combined_img
+
 
     def canvasSize(self, images, homographies):
         height, width = images[0].shape[:2]
