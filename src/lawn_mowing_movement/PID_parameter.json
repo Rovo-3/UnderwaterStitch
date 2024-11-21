@@ -10,12 +10,12 @@
         "kd": 0
     },
     "Depth": {
-        "kp": 100,
+        "kp": 200,
         "ki": 3,
-        "kd": 30
+        "kd": 0
     },
     "Setpoint":{
-        "depth":4,
+        "depth":10,
         "yaw":0,
         "forward_speed":0
     }

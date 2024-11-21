@@ -1,5 +1,5 @@
 import numpy as np
-# import math
+import math
 # from scipy.interpolate import CubicSpline
 # import time
 
@@ -12,7 +12,7 @@ class Guidance:
         self.current_waypoint_index = 0
         self.distance_treshold = distance_treshold
         self.dt = dt
-        self.max_steering_angle = np.radians(30)
+        self.max_steering_angle = np.radians(40)
         self.update_status()
         self.distance_to_wp = 0
         if generate_virtual_wp:
@@ -134,6 +134,7 @@ class Guidance:
         # calculate the path heading
         dx = target_point[0] - vehicle_position[0]
         dy = target_point[1] - vehicle_position[1]
+        distance = (dx**2 + dy**2)**0.5
         path_heading = np.arctan2(dx, dy)
         # heading error = path_heading-vehicle
         heading_error = path_heading-vehicle_heading
@@ -147,7 +148,11 @@ class Guidance:
         steering_angle = heading_error - cross_track_correction
         steering_angle = np.clip(steering_angle, -self.max_steering_angle, self.max_steering_angle)
         desired_heading = vehicle_heading + steering_angle
-
+        forward_velo = self.calc_velo(0.5, distance, 2)
+        if heading_error > 0.4:
+            forward_velo = 0
+        
+        lateral_velo = self.calc_velo(0.5, cross_track_error, 0.5)
         # debugging code
         # print("vehicle_heading", np.degrees(vehicle_heading))
         print("heading_error", np.degrees(heading_error))
@@ -159,7 +164,7 @@ class Guidance:
         # print("Closest Point on Path",_)
          # print("path_heading", np.degrees(path_heading))
 
-        return desired_heading, target_point, self.status
+        return desired_heading, target_point, self.status, forward_velo, lateral_velo
     
     def calculate_cross_track(self, waypoint1, waypoint2, current_position):
         """
@@ -207,6 +212,13 @@ class Guidance:
         # cross_track_error = np.linalg.norm(pos - closest_point_on_path)
         
         return cross_length2, closest_point_on_path
+        
+    def calc_velo(self, k, error_now, max_velo):
+        # sigmoid function
+        # https://andymath.com/logistic-function/
+        sigmoid = 2/(1+math.exp(-k*error_now))-1
+        return sigmoid*max_velo
+        
     def calculate_steering(self, vehicle_position, vehicle_heading, velocity=0.5):
         if self.mode == 'LOS':
             return self.los(vehicle_position, vehicle_heading)
