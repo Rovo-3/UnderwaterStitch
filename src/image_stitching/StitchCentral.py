@@ -13,6 +13,7 @@ class StitchCentral:
         assert (
             base_img.shape == new_img.shape
         ), "Images must have the same shape for overlaying."
+        
         base_gray = cv2.cvtColor(base_img, cv2.COLOR_BGR2GRAY)
         gray = cv2.cvtColor(new_img, cv2.COLOR_BGR2GRAY)
 
@@ -23,26 +24,17 @@ class StitchCentral:
         
         if seamless:
             assert (masks is not None), "Mask must be profided"
-            edge_mask=masks[0]
-            inner_mask=masks[1][0]
-            kernel = masks[1][1]
+            edge_mask, (inner_mask, kernel) = masks
 
-            edge_mask_gray = cv2.cvtColor(edge_mask.copy(), cv2.COLOR_BGR2GRAY)
-            inner_mask_gray = cv2.cvtColor(inner_mask.copy(), cv2.COLOR_BGR2GRAY)
-            _, binary = cv2.threshold(base_gray.copy(), 1, 255, cv2.THRESH_BINARY)
-            print(inner_mask.shape)  # Check the shape of the inner_mask
-            print(binary.shape)      # Check the shape of the binary mask
+            edge_mask_gray = cv2.cvtColor(edge_mask, cv2.COLOR_BGR2GRAY)
+            _, binary = cv2.threshold(base_gray, 1, 255, cv2.THRESH_BINARY)
 
             edge_mask_dilated=cv2.dilate(edge_mask_gray,None, iterations=int(self.offset*2))
             overlap_mask = cv2.bitwise_and(edge_mask_dilated, binary)
             
-            featheringTransition = self.feathering(combined_img, base_img_ori, new_img, inner_mask, kernel, overlap_mask)
+            featheringTransition = self._feathering(combined_img, base_img_ori, new_img, inner_mask, kernel, overlap_mask)
             
             return featheringTransition
-        
-        mask = gray > 0
-        base_img[mask] = new_img[mask]
-        combined_img = base_img
 
         return combined_img
 
@@ -175,7 +167,7 @@ class StitchCentral:
         output = np.where(edge_mask==np.array([255, 255, 255]), blurred_img, base_img)
         return output
 
-    def feathering(self, combined_img, base_img, overlay_img, mask, kernel, overlap_mask = None):
+    def _feathering(self, combined_img, base_img, overlay_img, mask, kernel, overlap_mask = None):
         blurred_mask  = cv2.GaussianBlur(mask,kernel,0)
         feathered_mask_normalized = blurred_mask / 255.0  # Normalize to range [0, 1]
 

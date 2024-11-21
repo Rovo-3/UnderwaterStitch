@@ -1,143 +1,243 @@
-from imutils import paths
-import numpy as np
-import argparse
-import imutils
 import cv2
-from datetime import datetime
-import os
+import numpy as np
+import glob
+import datetime
+import random
+import time
+from natsort import natsorted
 
-def dynamic_white_balance(image):
-    wb = cv2.xphoto.createSimpleWB()
-    corrected_image = wb.balanceWhite(image)
-    # cv2.imwrite("ImprovedSIFT_correctedWB.jpg", corrected_image)
-    # showimg("correctedWB", corrected_image)
-    return corrected_image
 
-# Function for CLAHE contrast enhancement
-def apply_CLAHE(image, clip_limit=2.0, grid_size=(4, 4)):
-    # convert to lab colorspace and spliting it
-    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-    l, a, b = cv2.split(lab)
-    # increase the contrast of image
-    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=grid_size)
-    l_clahe = clahe.apply(l)
-    # merge it
-    lab_clahe = cv2.merge((l_clahe, a, b))
-    output = cv2.cvtColor(lab_clahe, cv2.COLOR_LAB2BGR) 
-    # clahe_img = cv2.imwrite("ImprovedSIFT_clahe.jpg",output)
-    # showimg("output", output)
-    return output
+from DetectMatchConfidence import DetectMatchConfidence
+from ImageProcessor import ImageProcessor
+from StitchCentral import StitchCentral
+from ProcessPairingImage import ProcessPairingImage
 
-# construct the argument parser and parse the arguments
-ap = argparse.ArgumentParser()
-ap.add_argument("-i", "--images", type=str,
-	help="path to input directory of images to stitch")
-ap.add_argument("-o", "--output", type=str,
-	help="path to the output image")
-ap.add_argument("-c", "--crop", type=int, default=1,
-	help="whether to crop out largest rectangular region")
-args = vars(ap.parse_args())
 
-folder_name = "VID1"
-output_path = "./output/" + folder_name + "/"
-input_path = "./images/generated_frames/" + folder_name
+programstart = time.time()
 
-try:
-    os.makedirs(output_path)
-    print(f"Directory '{output_path}' created")
-except FileExistsError:
-    print(f"Directory '{output_path}' already exists")
 
-# grab the paths to the input images and initialize our images list
-print("[INFO] loading images...")
-# imagePaths = sorted(list(paths.list_images("./images/set13")))
+def findTransformed(i, homography):
 
-imagePaths = sorted(list(paths.list_images(input_path)), key=lambda x: int(os.path.splitext(os.path.basename(x))[0]))
-print(imagePaths)
-images = []
+    h, w, _ = arrimage[i].shape
+    corners = np.array([[0, 0], [w, 0], [w, h], [0, h]], dtype="float32")
+    transformed_corner = cv2.perspectiveTransform(corners.reshape(-1, 1, 2), homography)
 
-# loop over the image paths, load each one, and add them to our
-# images to stich list
-for imagePath in imagePaths:
-    image=cv2.imread(imagePath)
-    # image=dynamic_white_balance(image)
-    image=apply_CLAHE(image)
-    # image=cv2.resize(image,(0,0),fx=1, fy=1)
-    # image = cv2.undistort (image, camera_matrix, dist_coeffs)
-    images.append(image)
+    minx = np.min(transformed_corner[:, 0, 0])
+    maxx = np.max(transformed_corner[:, 0, 0])
+    miny = np.min(transformed_corner[:, 0, 1])
+    maxy = np.max(transformed_corner[:, 0, 1])
 
-print("[INFO] stitching images...")
-stitcher = cv2.Stitcher.create(cv2.STITCHER_SCANS)
-(status, stitched) = stitcher.stitch(images)
-print("done stitching")
+    print(f"pic {i} : {minx}, {maxx}, {miny}, {maxy}")
+    print(f"pic {i} W: {maxx - minx} H: {maxy - miny}")
+    print()
+    heightth.append(int(maxy - miny))
+    widthth.append(int(maxx - minx))
+    # cv2.waitKey(500)
 
-# if the status is '0', then OpenCV successfully performed image
-if status == 0:
-    now = datetime.now()
-    date = now.strftime('%y%m%d_%H%M%S')
-    filename=output_path+str(date)+".jpg"
-    print(filename)
 
-    print("status:", status)
-    cv2.imwrite(filename, stitched)
-    # display the output stitched image to our screen
-    cv2.imshow("Stitched", stitched)
+def findBestMatch(current_image, excluded_images, matrix):
+    best_match = None
+    best_score = -1
+    for img_idx, score in enumerate(matrix[current_image]):
+
+        if isinstance(score, list) and isinstance(best_score, list):
+            # print(1)
+            if img_idx not in excluded_images and score[0] > best_score[0]:
+                best_match = img_idx
+                best_score = score
+
+        elif isinstance(best_score, list):
+            # print(2)
+            if img_idx not in excluded_images and score > best_score[0]:
+                best_match = img_idx
+                best_score = score
+
+        elif isinstance(score, list):
+            # print(3)
+            if img_idx not in excluded_images and score[0] > best_score:
+                best_match = img_idx
+                best_score = score
+        else:
+            # print(4)
+            # print(f"score {score} :: best_score {best_score}")
+            if img_idx not in excluded_images and score > best_score:
+                best_match = img_idx
+                best_score = score
+            # print(f"score {score} :: best_score {best_score}")
+
+    # print(f"return best match : {best_match}")
+    return best_match
+
+
+def generateOrderedImages(matrix):
+    current_image = random.choice(range(len(matrix)))
+
+    print(f"Initial center image: {current_image}")
+
+    order = [current_image]
+
+    while len(order) < len(matrix):
+        # print(f"({len(order)}/{len(matrix)})")
+        # time.sleep(1)
+        # print(f"matx {len(matrix)}")
+        # print(order)
+
+        left_best = findBestMatch(order[0], order, matrix)
+        right_best = findBestMatch(order[-1], order, matrix)
+
+        # print(f"left {left_best} :: right {right_best}")
+
+        if left_best is not None and right_best is not None:
+            left_score = matrix[order[0]][left_best]
+            right_score = matrix[order[-1]][right_best]
+
+            if left_score >= right_score:
+                order.insert(0, left_best)
+
+            else:
+                order.append(right_best)
+
+        elif left_best is not None:
+            order.insert(0, left_best)
+
+        elif right_best is not None:
+            order.append(right_best)
+
+        elif left_best is None or right_best is None:
+            print("Loop Error, left or right best is none")
+            print(order)
+            break
+            # continue
+
+    # print("return order")
+    return order
+
+
+def showFinalImage(stitched_image):
+    stitched_image = ip.resizeImage(stitched_image, 0.5)
+    cv2.namedWindow("stitched_output", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("stitched_output", 1280, 720)
+    cv2.imshow("stitched_output", stitched_image)
     cv2.waitKey(0)
-# otherwise the stitching failed, likely due to not enough keypoints)
-# being detected
-else:
-    print("[INFO] image stitching failed ({})".format(status))
 
 
+method = "bf"
+ip = ImageProcessor()
+dmc = DetectMatchConfidence()
+sc = StitchCentral()
+ppi = ProcessPairingImage(method=method)
 
-# cropping is not yet required.
-    # if args["crop"] > 0:
-    #     # create a 10 pixel border surrounding the stitched image
-    #     print("[INFO] cropping...")
-    #     stitched = cv2.copyMakeBorder(stitched, 10, 10, 10, 10,
-    #         cv2.BORDER_CONSTANT, (0, 0, 0))
-    #     # convert the stitched image to grayscale and threshold it
-    #     # such that all pixels greater than zero are set to 255
-    #     # (foreground) while all others remain 0 (background)
-    #     gray = cv2.cvtColor(stitched, cv2.COLOR_BGR2GRAY)
-    #     thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY)[1]
-    #             # find all external contours in the threshold image then find
-    #     # the *largest* contour which will be the contour/outline of
-    #     # the stitched image
-    #     cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
-    #         cv2.CHAIN_APPROX_SIMPLE)
-    #     cnts = imutils.grab_contours(cnts)
-    #     c = max(cnts, key=cv2.contourArea)
-    #     # allocate memory for the mask which will contain the
-    #     # rectangular bounding box of the stitched image region
-    #     mask = np.zeros(thresh.shape, dtype="uint8")
-    #     (x, y, w, h) = cv2.boundingRect(c)
-    #     cv2.rectangle(mask, (x, y), (x + w, y + h), 255, -1)
-    #             # create two copies of the mask: one to serve as our actual
-    #     # minimum rectangular region and another to serve as a counter
-    #     # for how many pixels need to be removed to form the minimum
-    #     # rectangular region
-    #     minRect = mask.copy()
-    #     sub = mask.copy()
-    #     # keep looping until there are no non-zero pixels left in the
-    #     # subtracted image
-    #     while cv2.countNonZero(sub) > 0:
-    #         # erode the minimum rectangular mask and then subtract
-    #         # the thresholded image from the minimum rectangular mask
-    #         # so we can count if there are any non-zero pixels left
-    #         minRect = cv2.erode(minRect, None)
-    #         sub = cv2.subtract(minRect, thresh)
-    #     # find contours in the minimum rectangular mask and then
-    #     # extract the bounding box (x, y)-coordinates
-    #     cnts = cv2.findContours(minRect.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    #     cnts = imutils.grab_contours(cnts)
-    #     c = max(cnts, key=cv2.contourArea)
-    #     (x, y, w, h) = cv2.boundingRect(c)
-    #     # use the bounding box coordinates to extract the our final
-    #     # stitched image
-    #     stitched = stitched[y:y + h, x:x + w]
-    #     cv2.imwrite(filename, stitched)
-    #     # display the output stitched image to our screen
-    #     cv2.imshow("Stitched", stitched)
-    #     cv2.waitKey(0)
-    # else:
+path = "./Images/2ndfloor/*"
+# path = "./Images/TestSet/set4-rovPool/*"
+# path = "./imgTest"
+imagePaths = natsorted(list(glob.glob(path)))
+
+arrimgname, arrimage = [], []
+arrkeypoints, arrdescriptors = [], []
+# newOrderIdx = []
+# matxConf = []
+
+heightth = []
+widthth = []
+
+sift = cv2.SIFT.create()  # cv.NORM_L2
+orb = cv2.ORB.create()  # cv2.NORM_HAMMING
+brisk = cv2.BRISK.create()  # cv.NORM_L2
+akaze = cv2.AKAZE.create()  # cv.NORM_L2
+
+# datapath = "./2ndfloor.npz"
+# data = np.load(datapath)
+
+if __name__ == "__main__":
+    print(f"Images Path: {path} || Method: {method}")
+    print("loading images..")
+
+    detector = brisk
+
+    start = time.time()
+    for image in imagePaths:
+        # for image in data.files:
+        readImage = cv2.imread(image)
+        # readImage = data[image]
+        # readImage = ip.rotateImage(readImage)
+        readImage = ip.resizeImage(readImage)
+        readImage = ip.imagePreProcess(readImage)
+
+        blurlevel = ip.detectBlur(readImage)
+        if blurlevel < 100:
+            print(blurlevel)
+            continue
+
+        imageKeypoint, imageDescriptor = dmc.detectorKeypoint(detector, readImage)
+
+        arrimage.append(readImage)
+        arrimgname.append(image)
+        arrdescriptors.append(imageDescriptor)
+        arrkeypoints.append(imageKeypoint)
+
+        # print(f"Extracting Images: ({len(arrimage)}/{len(imagePaths)})")
+
+    totalimage = len(arrimage)
+    totaliterations = totalimage * (totalimage - 1)
+
+    print(f"Time loading iamges: {time.time()-start}")
+    print(f"Total Image In Folder: {len(imagePaths)}")
+    print(f"Blur Images: {len(imagePaths) - totalimage}")
+    print(f"Total Images Now: {totalimage}")
+
+    start = time.time()
+
+    if totaliterations > 5000:
+        process = "Parallel"
+        print(process)
+        matxConf = ppi.imageOrderByConf_Multi(
+            totalimage, arrimgname, arrdescriptors, arrkeypoints
+        )
+
+    else:
+        process = "Single"
+        print(process)
+        matxConf = ppi.imageOrderByConf_Single(
+            totalimage, arrimgname, arrdescriptors, arrkeypoints
+        )
+
+    print(f"Time confidence ordered: {time.time()-start}")
+    time.sleep(3)
+
+    # print(matxConf)
+
+    newOrderIdx = generateOrderedImages(matxConf)
+    print(newOrderIdx)
+
+    print("copying order")
+    newImageOrder = [arrimage[i] for i in newOrderIdx]
+
+    """
+    # allowedPixels are the distance of error between two points of matches. 
+    # for bigger images, it can use to near 0 numbers
+    # for normal images, it can use numbers ranging from 10 ~ 20
+    # the general allowedPixels used for every pictures default at 4
+    """
+
+    print("central")
+    start = time.time()
+    stitched_image = sc.stitchCentral(detector, newImageOrder, allowedPixels=5)
+    print(f"Time stitching: {time.time()-start}")
+
+    cv2.imwrite(
+        f"./Results/{datetime.datetime.now().strftime('%m-%d-%Y-%H-%M-%S')}_st_{process}_{method}.png",
+        stitched_image,
+    )
+    print(
+        f"./Results/{datetime.datetime.now().strftime('%m-%d-%Y-%H-%M-%S')}_st_{process}_{method}.png"
+    )
+
+    # print(heightth)
+    print()
+    # print(widthth)
+
+    print("=== DONE ===")
+    print(f"Process : ")
+    print(f"Time elapsed: {time.time()-programstart}")
+
+    # showFinalImage(stitched_image)
