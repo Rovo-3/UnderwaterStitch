@@ -14,14 +14,14 @@ import matplotlib.pyplot as plt
 
 # Create the connection
 master = mavutil.mavlink_connection('udpin:0.0.0.0:14770')
+
 # Wait a heartbeat before sending commands
 master.wait_heartbeat()
 print("get heartbeat")
 file_directory = os.path.dirname(os.path.abspath(__file__))
 time_last=0
 veloPID = False
-simulation = True
-# https://mavlink.io/en/messages/common.html#MAV_CMD_COMPONENT_ARM_DISARM
+simulation = False
 
 def arm() :
     master.mav.command_long_send(
@@ -39,6 +39,7 @@ def disarm() :
     0, 0, 0, 0, 0, 0, 0, 0)
     print("Disarming")
 
+# checking message
 def check_msg(msg_type=None):
     print("Checking Message")
     if msg_type == None:
@@ -46,15 +47,6 @@ def check_msg(msg_type=None):
         msg = master.recv_match(type="POWER_STATUS", blocking=True)
         msg = msg.to_dict()
         print("Got message: ", msg)
-    
-    # if not msg:
-    #     return
-    # if msg.get_type() == 'HEARTBEAT':
-    #     print("\n\n**Got message: %s**" % msg.get_type())
-    #     print("Message: %s" % msg)
-    #     print("\nAs dictionary: %s" % msg.to_dict())
-    #     # Armed = MAV_STATE_STANDBY (4), Disarmed = MAV_STATE_ACTIVE (3)
-    #     print("\nSystem status: %s" % msg.system_status)
 
 def set_rc(channel_id,pwm=1500):
     print(f"RC channel {channel_id} set to PWM {pwm}.")
@@ -105,14 +97,8 @@ def getData(file_name,type="sensor",retries=5,delay=0.1):
     
 def start_LM_mission():
     print("Starting the LM Mission")
-    # uncomment for custom input wp value, no hard coded value
 
-    # 1. Input for degree, length and gap.
-    # heading = math.radians(int(input("Input the heading in degree ")))
-    # length = int(input("Input the length of survey "))
-    # gap = int(input("Input the gap of each mowing "))
-    # iteration = int(input("How many iteration? "))
-    wp_heading,length,gap,iteration = 0,2,1,1
+    wp_heading,length,gap,iteration = 270,5,5,1
     # regulate to [-pi,pi]
     wp_heading = (math.radians(wp_heading)+math.pi)%(2*math.pi)-math.pi
 
@@ -134,42 +120,48 @@ def start_LM_mission():
     # 4. Instantiate PID yaw
     control_file_name = file_directory+"/PID_parameter.json"
     forward_param, yaw_param, depth_param, _ = getData(control_file_name, "control")
-    yaw_control = PID(Kp=yaw_param["kp"],Ki=yaw_param["ki"],Kd=yaw_param["kd"],Tf=0)
+    yaw_control = PID(Kp=yaw_param["kp"],Ki=yaw_param["ki"],Kd=yaw_param["kd"])
 
     # 5. Determine the maximum, minimum, and midval of control signal
-    yaw_control.set_limit(upper=1650,lower=1350, midval=1500)
+    yaw_control.set_limit(upper=1750,lower=1250, midval=1500)
     
-    target_depth=-2
-    depth_control = PID(Kp=depth_param["kp"],Ki=depth_param["ki"],Kd=depth_param["kd"],Tf=0)
-    depth_control.set_limit(upper=1650,lower=1350, midval=1500)
+    target_depth = -0.2
+    depth_control = PID(Kp=depth_param["kp"],Ki=depth_param["ki"],Kd=depth_param["kd"])
+    depth_control.set_limit(upper=1700,lower=1300, midval=1500)
+
+    forward_control = PID(Kp=forward_param["kp"],Ki=forward_param["ki"],Kd=forward_param["kd"])
+    forward_control.set_limit(upper=1700, lower=1300, midval=1500)
+
+    lateral_control = PID(Kp=forward_param["kp"],Ki=forward_param["ki"],Kd=forward_param["kd"])
+    lateral_control.set_limit(upper=1700, lower=1300, midval=1500)
 
     vehicle_position = np.array([init_pos])
-    yaw_data_last, depth_data_last = 0 , 0
+
+    # PID velo
+    yaw_data_last, depth_data_last = 0, 0
+
     print("Starting the Mission, arming")
     arm()
     time_str = time.strftime("%Y-%m-%d-%H-%M")
+
     # 6. Start the loop for control mechanism
     while True:
         # Check the sensor data for PID input
         dvl_data, depth = getData(file_name)
         # Calculate the Guidance
-        curr_heading=dvl_data["yaw"]
+        curr_heading = dvl_data["yaw"]
         curr_heading = (curr_heading+math.pi)%(2*math.pi)-math.pi
         curr_depth = depth
         curr_pos = (dvl_data["x"],dvl_data["y"])
-        target_angle, target_point, status = guidance.calculate_steering(vehicle_position=curr_pos,vehicle_heading=curr_heading, velocity=1)
+        target_angle, target_point, status, forward_velo, lateral_velo = guidance.calculate_steering(vehicle_position=curr_pos,vehicle_heading=curr_heading, velocity=1)
         
         # Calculate the error from sensor data and Guidance
         heading_error = target_angle-curr_heading
         heading_error = normalize_yaw(heading_error)
         depth_error = target_depth-curr_depth
+        forward_error = forward_velo-(dvl_data["vx"]**2+dvl_data["vy"]**2)**0.5*math.cos(target_angle)
+        lateral_error = lateral_velo-(dvl_data["vx"]**2+dvl_data["vy"]**2)**0.5*math.sin(target_angle)
 
-        # velocity PID 
-        # ***comment if you want regular PID 
-        yaw_velo_des = pos_error_to_velo(heading_error, 1, 0.5, 0.01)
-        depth_velo_des = pos_error_to_velo(depth_error, 1, 1.5, 0.05)
-        # ***comment if you want regular PID 
-        
         print("Curr, WP, Guidance, Error, Heading, Target: ",curr_heading,wp_heading,target_angle,heading_error, target_point)
         # Calculate the PID output
         time_now=time.time()
@@ -177,9 +169,14 @@ def start_LM_mission():
         interval = time_now-time_last
         if (interval>5):
             interval=-1
-
-        # velocity PID 
+        
+        # # PID velo 
         # ***comment if you want regular PID 
+        yaw_velo_des = pos_error_to_velo(heading_error, 1, 0.5, 0.01)
+        depth_velo_des = pos_error_to_velo(depth_error, 1, 1.5, 0.05)
+        # ***comment if you want regular PID 
+
+        # PID velo
         if veloPID:
             depth_velo_now = calc_velo(curr_depth, depth_data_last, interval)
             depth_velo_error = depth_velo_des - depth_velo_now
@@ -187,33 +184,25 @@ def start_LM_mission():
             yaw_velo_error = yaw_velo_des - yaw_velo_now
             output_depth = depth_control.calculate(depth_velo_error,interval,True)
             output_yaw = yaw_control.calculate(yaw_velo_error,interval,True)
-        # ***comment if you want regular PID 
+            yaw_data_last, depth_data_last = curr_heading ,curr_depth
 
         if not veloPID:
             output_yaw = yaw_control.calculate(heading_error,interval=interval,aw=True)
             output_depth = depth_control.calculate(depth_error, interval=interval, aw=True)
+            output_forward = forward_control.calculate(forward_error, interval=interval, aw=True)
+            output_lateral = forward_control.calculate(lateral_error, interval=interval, aw=True)
         
         # updating variables
         time_last=time_now
-        yaw_data_last, depth_data_last = curr_heading ,curr_depth 
-
-        # Input the output value to ROV
-        # print(output_yaw)
+         
 
         # yawing
         set_rc(4, int(output_yaw))
+        # forward
+        set_rc(5, int(output_forward))
+        # dive
+        set_rc(3,output_depth)
 
-        # start forward if error less than 20 degree
-        heading_error_deg = math.degrees(heading_error)
-        if abs(heading_error_deg) < 5:
-            if(guidance.distance_to_wp<0.4):
-                # slowly!
-                set_rc(5, 1510)
-            else:
-                set_rc(5, 1530)
-        else:
-            set_rc(5, 1500)
-        # deadband yaw +- 25
         if simulation == True:
             output_value_diff = int(output_yaw)-1500
             if (abs(output_value_diff) <30) and (output_value_diff != 0):
@@ -221,10 +210,9 @@ def start_LM_mission():
                 set_rc(4, int(1500+sign*30))
                 set_rc(4, 1500)
 
+        heading_error_deg = math.degrees(heading_error)
         print("Heading Error: ", heading_error_deg)
 
-        # dive
-        set_rc(3,output_depth)
         print(status)
         # Repeat till guidance said enough
         if(status=="Guidance Done"):
@@ -234,6 +222,7 @@ def start_LM_mission():
             print("End of mission, disarming")
             disarm()
             break
+        
         # visualization
         vehicle_position = np.vstack([vehicle_position,np.array(curr_pos)])
         plt.clf()
@@ -248,7 +237,6 @@ def start_LM_mission():
         file_path = "{}/../../output/{}guidance_test.jpg".format(file_directory, time_str)
         print("Saving to:", file_path)
         plt.savefig(file_path)
-    
 
 def tuning_PID():
     print("Starting the PID Tuning")
@@ -343,17 +331,15 @@ def tuning_PID():
         time_last=time_now
         data_last = data
         time.sleep(0.2)
+
         # Saving every iteration
-        
         file_path = "{}/../../output/{}tuning_{}_kp{}_ki{}_kd{}_{}.jpg".format(file_directory,time_str,mode,kp,ki,kd,veloPID)
         print("Saving to:", file_path)
         plt.savefig(file_path)
+
     set_rc(3,1500)
     set_rc(4,1500)
     disarm()
-    # file_path = "{}/../../output/tuning_{}_kp{}_ki{}_kd{}_{}.jpg".format(file_directory,mode,kp,ki,kd,veloPID)
-    # print("Saving to:", file_path)
-    # plt.savefig(file_path)
 
 def visualization(axis, data_x, data_y,linesetting,label, title, clear=1):
     if clear == 1:
@@ -415,10 +401,6 @@ while True:
                         10. tuning_pid
                         """).strip()
         
-        # split_command = command.split()
-        # if len(split_command) > 1:
-        #     command, parameter = split_command
-        #     print(parameter)
         print("Okay, ", command)
         if command == Commands.ARM.value:
             arm()
@@ -462,8 +444,8 @@ while True:
             disarm()
         if command == Commands.TUNING.value:
             tuning_PID()
-        # else:
-        #     print("Unkown Command, ", command)
+        else:
+            print("Unkown Command, ", command)
         
     except KeyboardInterrupt:
         set_rc(4,1500)

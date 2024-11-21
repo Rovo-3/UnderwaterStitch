@@ -6,6 +6,8 @@ import json
 import socket
 import os
 import math
+import numpy as np
+import matplotlib.pyplot as plt
 
 # Get the directory of the current Python file
 file_directory = os.path.dirname(os.path.abspath(__file__))
@@ -25,7 +27,7 @@ class Sensors:
         # if the getting DVL data from socket
         if self.dvl_from_socket:
             self.dvlhost = '192.168.2.95'
-            self.dvlhost = 'dvl.demo.waterlinked.com'
+            # self.dvlhost = 'dvl.demo.waterlinked.com'
             self.dvlport = 16171
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.dvlhost,self.dvlport))
@@ -36,7 +38,7 @@ class Sensors:
             "Time": 0,
             "roll(degree)": 0,
             "pitch(degree)": 0,
-            "yaw(degree)": 0,
+            "yaw_imu": 0,
             "rollspeed(w)": 0,
             "pitchspeed(w)": 0,
             "yawspeed(w)": 0,
@@ -73,25 +75,20 @@ class Sensors:
             "dvl_velocity_valid":0,
             "dvl_covariance":0,
         }
-        # self.createHeader()
-
-    # def createHeader(self):
-    #     keys = list(self.data_log.keys())
-    #     header = ",".join(keys) + "\n"
-    #     self.target_file.write(header)
-    #     self.target_file.flush()
+        self.initial_pos = None
+        self.cur_pos=(0,0)
 
     def getData(self):
         time_now = self.getTime()
         date = self.getDate()
-        # self.GetIMU(), self.GetVFRHUD(), self.GetAccell()
-        if self.is_simulation:
-            self.getPosition()
-            self.getAttitude()
-        # getDVLMav has yet tested
-        # self.getDVLSocket() if self.dvl_from_socket else self.getDVLMav()
         self.data_log["Date"] = date
         self.data_log["Time"] = time_now
+        if self.is_simulation:
+            self.getAttitude()
+            self.getPosition()
+            return
+        self.getAttitude()
+        self.getDVLSocket()
 
     def getIMU(self):
         imuData = self.conn.recv_match(type="ATTITUDE", blocking=False)
@@ -119,9 +116,9 @@ class Sensors:
         attitude = self.conn.recv_match(type="AHRS2", blocking=False)
         if attitude is not None:
             attitude = attitude.to_dict()
-            self.data_log["dvl_roll"] = attitude["roll"]
-            self.data_log["dvl_pitch"] = attitude["pitch"]
-            self.data_log["dvl_yaw"] = attitude["yaw"]
+            # self.data_log["roll_imu"] = attitude["roll"]
+            # self.data_log["dvl_pitch"] = attitude["pitch"]
+            self.data_log["yaw_imu"] = attitude["yaw"]
             self.data_log["depth"] = attitude["altitude"]
 
     def getDVLMav(self):
@@ -183,6 +180,7 @@ class Sensors:
             print("Cannot get altitude")
     def getDVLSocket(self):
         #   try receiving data from socket and decode
+        print("getting_data")
         try:
             data = self.socket.recv(2048).decode('utf-8')
             if data:
@@ -204,6 +202,10 @@ class Sensors:
                     for key in data_list.keys():
                         if key in jsonData and jsonData[key] is not None:
                             self.data_log["dvl_"+key] = jsonData[key]
+                    if self.initial_pos == None:
+                        self.initial_pos = (self.data_log["dvl_x"],self.data_log["dvl_y"])
+                    self.data_log["dvl_x"] -= self.initial_pos[0]
+                    self.data_log["dvl_y"] -= self.initial_pos[1]
                     data_angle={
                                 "roll":0,
                                 "pitch":0,
@@ -227,15 +229,13 @@ class Sensors:
     def cleanup(self):
         if self.socket:
             self.socket.close()
-        # if self.target_file:
-        #     self.target_file.close()
         print("Socket closed")
         raise
+
     def getVFRHUD(self):
         vfrData = self.conn.recv_match(type="VFR_HUD", blocking=False)
         if vfrData is not None:
             compass = vfrData.to_dict()
-
             self.data_log["airspeed(m/s)"] = compass["airspeed"]
             self.data_log["groundspeed(m/s)"] = compass["groundspeed"]
             self.data_log["heading(degree)"] = compass["heading"]
@@ -249,6 +249,8 @@ class Sensors:
             self.data_log["xacc"] = accell["xacc"] / 100
             self.data_log["yacc"] = accell["yacc"] / 100
             self.data_log["zacc"] = accell["zacc"] / 100
+
+    # testing code
     def get_msg(self, msg_type=None):
         if msg_type is not None:
             data = self.conn.recv_match(type=msg_type, blocking=False)
@@ -257,49 +259,64 @@ class Sensors:
         if data is not None:
             data = data.to_dict()
             print(data)
+
     def getDate(self):
         return datetime.datetime.now().date()
+    
     def getTime(self):
         return datetime.datetime.now().time()
+    
     def updateFile(self):
         with open(self.file_name, "r") as target_file:
             data = json.load(target_file)
+        delta_yaw = (self.data_log["yaw_imu"]-self.data_log["dvl_yaw"])+math.pi%(2*math.pi)-math.pi
         data["Date"] = str(self.data_log["Date"])
         data["Time"] = str(self.data_log["Time"])
-        data["DVL"]["x"] = self.data_log["dvl_y"]
-        data["DVL"]["y"] = self.data_log["dvl_x"]
+        # transform the y and x value
+        data["DVL"]["y"] = self.data_log["dvl_x"]*math.cos(delta_yaw)-self.data_log["dvl_y"]*math.sin(delta_yaw)
+        data["DVL"]["x"] = self.data_log["dvl_y"]*math.cos(delta_yaw)+self.data_log["dvl_x"]*math.sin(delta_yaw)
+        self.cur_pos = (data["DVL"]["x"],data["DVL"]["y"])
         data["DVL"]["z"] = self.data_log["dvl_z"]
         data["DVL"]["vx"] = self.data_log["dvl_vx"]
         data["DVL"]["vy"] = self.data_log["dvl_vy"]
         data["DVL"]["vz"] = self.data_log["dvl_vz"]
         data["DVL"]["roll"] = self.data_log["dvl_roll"]
         data["DVL"]["pitch"] = self.data_log["dvl_pitch"]
-        data["DVL"]["yaw"] = self.data_log["dvl_yaw"]
+        data["DVL"]["yaw"] = self.data_log["yaw_imu"]
         data["DVL"]["alt"] = self.data_log["dvl_altitude"]
         data["depth"] = self.data_log["depth"]
         with open(self.file_name, "w") as target_file:
             json.dump(data, target_file, indent=4)
+    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-timeStep', type=float, default=0.1, help='addTimestep')
+    parser.add_argument('-timeStep', type=float, default=0.5, help='addTimestep')
     args = parser.parse_args()
     print("Timestep: ", args.timeStep)
-    # update the data
     
     lastlog = time.time()
     logging = Sensors(time_step=args.timeStep)
-
+    vehicle_position = np.array([0,0])
     while True:
         try:
             logging.getData()
-            # time.sleep(0.003)
-            # logging.get_msg()
             now = time.time()
             if now - lastlog >= logging.time_step:
                 logging.updateFile()
                 lastlog=now
-                pass
+            curr_pos = logging.cur_pos
+            print(curr_pos)
+
+            # plot the vehicle position
+            vehicle_position = np.vstack([vehicle_position,np.array(curr_pos)])
+            plt.clf()
+            plt.plot(vehicle_position[:, 0], vehicle_position[:, 1], 'bo-', label='Vehicle Position')
+            plt.title("Converted Position Data")
+            plt.legend()
+            plt.draw()
+            # plt.pause(0.01)
+
         except KeyboardInterrupt:
             print("Byebye")
             exit()
