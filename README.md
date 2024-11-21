@@ -12,6 +12,12 @@ ROV Guidance and Control program is in the src folder.
 ├───myScript
 │   ├───imgEnhance
 │   └───Trials
+<<<<<<< HEAD
+=======
+├───output
+│   ├───fail
+│   └───New folder
+>>>>>>> 8568834682e70843df38c965d61a63b020c5c706
 └───src
     ├───image_stitching
     └───lawn_mowing_movement
