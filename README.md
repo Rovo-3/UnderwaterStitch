@@ -61,9 +61,15 @@ Overall, the lawn mowing movement consist of 5 main code:
 5. Main Program to Compile Control, WP, and Guidance [(main.py)](./src/lawn_mowing_movement/main.py)
 
 Settings and datas are stored in JSON file
-- PID_parameter.json
+- parameter.json
 
-    Storing PID parameter and setpoint for tuning purpose
+    Storing parameter for PID, setpoint and LM waypoint settings. Those parameter can be dynamicly changed during the tuning, and before commanding the LM movement.
+
+    LM_param
+    1. "heading": desired heading in degree for LM
+    2. "length": length of each LM
+    3. "gap" : the gap between LM
+    4. "iterations" : desired iterations for LM
 
 - sensor_data.json
 
