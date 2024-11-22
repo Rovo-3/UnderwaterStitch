@@ -35,10 +35,10 @@ Customization
 ```
 main.py
 Line
+├─89      method      --> "bf" or "knn"
 ├─90      ordered     --> "True" if images are manually ordered or "False" 
 ├─94      sc.seamless --> "True" if needed feathering or "False"
-├─124     method      --> "bf" or "knn"
-└─130     path        --> "path to images"
+└─98      path        --> "path to images"
 ```
 
 ## Stitch Result
