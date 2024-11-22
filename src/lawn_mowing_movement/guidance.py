@@ -1,7 +1,5 @@
 import numpy as np
 import math
-# from scipy.interpolate import CubicSpline
-# import time
 
 class Guidance:
     def __init__(self, waypoints, mode, lookahead_distance=None, k_e=None, distance_treshold = 0.1, generate_virtual_wp=False, dt=1):
@@ -49,14 +47,14 @@ class Guidance:
         dy = target_point[1] - vehicle_position[1]
         
         target_heading = (np.arctan2(dx, dy))
-        # print("Here is the guidance")
-        # print(dx,dy)
-        # print(target_heading)
+
         heading_error = target_heading-vehicle_heading
         heading_error = np.arctan2(np.sin(heading_error), np.cos(heading_error))
         steering_angle=np.clip(heading_error,-self.max_steering_angle,self.max_steering_angle)
         target_heading = vehicle_heading+steering_angle
-        return target_heading, target_point, self.status
+        lateral_velo=0
+        forward_velo=0
+        return target_heading, target_point, self.status, lateral_velo, forward_velo
 
     def generate_virtual_waypoints(self, num_virtual_points=10):
         virtual_waypoints = []
@@ -120,8 +118,8 @@ class Guidance:
 
         if self.current_waypoint_index == (len(self.waypoints)-1):
             self.status="Guidance Done"
-
-        return desired_heading, target_point, self.status
+        lateral_velo, forward_velo = 0,0
+        return desired_heading, target_point, self.status, lateral_velo, forward_velo
 
     # Stanley Controller Guidance
     def stanley(self, vehicle_position, vehicle_heading, velocity):
@@ -153,12 +151,13 @@ class Guidance:
             forward_velo = 0
         
         lateral_velo = self.calc_velo(0.5, cross_track_error, 0.5)
+        
         # debugging code
         # print("vehicle_heading", np.degrees(vehicle_heading))
-        print("heading_error", np.degrees(heading_error))
+        # print("heading_error", np.degrees(heading_error))
         # print("cross_track_correction", np.degrees(cross_track_correction))
         # print("Prev target point", prev_target_point)
-        print("Target point", target_point)
+        # print("Target point", target_point)
         # print("Vehicle Position",vehicle_position)
         # print("Cross_track_error",cross_track_error)
         # print("Closest Point on Path",_)
