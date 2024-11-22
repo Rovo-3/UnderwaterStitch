@@ -23,7 +23,22 @@ Image Stitching, and ROV Guidance and Control program is in the src folder.
         └───simulation_and_playground
 ```
 ## Image Stitching
-Image Stitching code could be found in `src/image_stitching` folder.
+
+[1]: https://docs.opencv.org/3.4/d9/d7a/classcv_1_1xphoto_1_1WhiteBalancer.html
+[2]: https://docs.opencv.org/4.x/d5/daf/tutorial_py_histogram_equalization.html
+[3]: https://ieeexplore.ieee.org/document/8346440
+[4]: https://docs.opencv.org/4.x/dc/dc3/tutorial_py_matcher.html
+[5]: https://docs.opencv.org/4.x/d9/dab/tutorial_homography.html
+[6]: https://www.mdpi.com/2076-3417/13/22/12251
+
+Image Stitching code could be found in `src/image_stitching` folder. This Image Stitching program consist of 5 main scripts: 
+1. [main.py](./src/image_stitching/main.py) : Importing images and the main part of programs.
+2. [ImageProessor.py](./src/image_stitching/ImageProcessor.py) : The pre-processing of images using [White Balance][1] and [CLAHE][2].
+3. [ProcessPairingImage.py](./src/image_stitching/ProcessPairingImage.py) : Automatically orders images by features if imported images are not ordered manually. 
+4. [DetectMatchConfidence.py](./src/image_stitching/DetectMatchConfidence.py) : Extracts features with [SIFT/ORB/BRISK/AKAZE][3], [KNN/BF][4] matching, [Homography][5] transformation and confidence match between images. 
+5. [StitchCentral.py](./src/image_stitching/StitchCentral.py) : Stitch images by using a central image, and [Blending][6] technique. 
+
+
 
 Navigate to [image_stitching](./src/image_stitching/), and run the code : 
 ```
