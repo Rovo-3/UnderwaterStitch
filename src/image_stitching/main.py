@@ -15,57 +15,30 @@ from ProcessPairingImage import ProcessPairingImage
 
 programstart = time.time()
 
-
-def findTransformed(i, homography):
-
-    h, w, _ = arrimage[i].shape
-    corners = np.array([[0, 0], [w, 0], [w, h], [0, h]], dtype="float32")
-    transformed_corner = cv2.perspectiveTransform(corners.reshape(-1, 1, 2), homography)
-
-    minx = np.min(transformed_corner[:, 0, 0])
-    maxx = np.max(transformed_corner[:, 0, 0])
-    miny = np.min(transformed_corner[:, 0, 1])
-    maxy = np.max(transformed_corner[:, 0, 1])
-
-    print(f"pic {i} : {minx}, {maxx}, {miny}, {maxy}")
-    print(f"pic {i} W: {maxx - minx} H: {maxy - miny}")
-    print()
-    heightth.append(int(maxy - miny))
-    widthth.append(int(maxx - minx))
-    # cv2.waitKey(500)
-
-
 def findBestMatch(current_image, excluded_images, matrix):
     best_match = None
     best_score = -1
     for img_idx, score in enumerate(matrix[current_image]):
 
         if isinstance(score, list) and isinstance(best_score, list):
-            # print(1)
             if img_idx not in excluded_images and score[0] > best_score[0]:
                 best_match = img_idx
                 best_score = score
 
         elif isinstance(best_score, list):
-            # print(2)
             if img_idx not in excluded_images and score > best_score[0]:
                 best_match = img_idx
                 best_score = score
 
         elif isinstance(score, list):
-            # print(3)
             if img_idx not in excluded_images and score[0] > best_score:
                 best_match = img_idx
                 best_score = score
         else:
-            # print(4)
-            # print(f"score {score} :: best_score {best_score}")
             if img_idx not in excluded_images and score > best_score:
                 best_match = img_idx
                 best_score = score
-            # print(f"score {score} :: best_score {best_score}")
 
-    # print(f"return best match : {best_match}")
     return best_match
 
 
@@ -77,15 +50,9 @@ def generateOrderedImages(matrix):
     order = [current_image]
 
     while len(order) < len(matrix):
-        # print(f"({len(order)}/{len(matrix)})")
-        # time.sleep(1)
-        # print(f"matx {len(matrix)}")
-        # print(order)
 
         left_best = findBestMatch(order[0], order, matrix)
         right_best = findBestMatch(order[-1], order, matrix)
-
-        # print(f"left {left_best} :: right {right_best}")
 
         if left_best is not None and right_best is not None:
             left_score = matrix[order[0]][left_best]
@@ -107,9 +74,7 @@ def generateOrderedImages(matrix):
             print("Loop Error, left or right best is none")
             print(order)
             break
-            # continue
 
-    # print("return order")
     return order
 
 
@@ -129,27 +94,16 @@ sc = StitchCentral()
 sc.seamless = True
 ppi = ProcessPairingImage(method=method)
 
-# path = "D:/Scripts/Python/AllUnderwaterStitchingScript/UnderwaterStitch/Images/testset2/set7trial17/*"
-# path = "./Images/2ndfloor/*"
-# path = "./Images/TestSet/set4-rovPool/*"
 path = "./imgTest"
 imagePaths = natsorted(list(glob.glob(path)))
 
 arrimgname, arrimage = [], []
 arrkeypoints, arrdescriptors = [], []
-# newOrderIdx = []
-# matxConf = []
-
-heightth = []
-widthth = []
 
 sift = cv2.SIFT.create()  # cv.NORM_L2
 orb = cv2.ORB.create()  # cv2.NORM_HAMMING
 brisk = cv2.BRISK.create()  # cv.NORM_L2
 akaze = cv2.AKAZE.create()  # cv.NORM_L2
-
-# datapath = "./2ndfloor.npz"
-# data = np.load(datapath)
 
 if __name__ == "__main__":
     print(f"Images Path: {path} || Method: {method}")
@@ -159,10 +113,7 @@ if __name__ == "__main__":
 
     start = time.time()
     for image in imagePaths:
-        # for image in data.files:
         readImage = cv2.imread(image)
-        # readImage = data[image]
-        # readImage = ip.rotateImage(readImage)
         readImage = ip.resizeImage(readImage)
         readImage = ip.imagePreProcess(readImage)
 
@@ -177,8 +128,6 @@ if __name__ == "__main__":
         arrimgname.append(image)
         arrdescriptors.append(imageDescriptor)
         arrkeypoints.append(imageKeypoint)
-
-        # print(f"Extracting Images: ({len(arrimage)}/{len(imagePaths)})")
 
     totalimage = len(arrimage)
     totaliterations = totalimage * (totalimage - 1)
@@ -206,7 +155,6 @@ if __name__ == "__main__":
             )
 
         print(f"Time confidence ordered: {time.time()-start}")
-        time.sleep(3)
 
         newOrderIdx = generateOrderedImages(matxConf)
         print(newOrderIdx)
@@ -239,12 +187,10 @@ if __name__ == "__main__":
         f"./Results/{datetime.datetime.now().strftime("%m-%d-%Y-%H-%M-%S")}_st_{process}_{method}_Feather{sc.seamless}.png"
     )
 
-    # print(heightth)
     print()
-    # print(widthth)
 
     print("=== DONE ===")
     print(f"Process : ")
     print(f"Time elapsed: {time.time()-programstart}")
 
-    # showFinalImage(stitched_image)
+    showFinalImage(stitched_image)
