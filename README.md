@@ -101,11 +101,13 @@ Example of LM movement:
 
 ![LM movement result](./asset/LM_movement.jpg)
 
-### Future Development:
-
+## Future Development
+### ROV Guidance: 
 1. Optimize the transformation of the coordinates.
 2. Create self coordinates based on DVL velocity if option 1 is not visible.
 3. Add ability to control altitude.
 4. Add feature to enables assist in attitude control. (Currently, joystick must be detached)
-5. Optimize image projection
-6. Faster ordered image processing (GPU)
+
+### Image Stitching
+1. Optimize image projection: APAP, Cropping
+2. Faster ordered image processing (GPU)
