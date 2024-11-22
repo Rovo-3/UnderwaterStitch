@@ -25,9 +25,25 @@ ROV Guidance and Control program is in the src folder.
         └───simulation_and_playground
 ```
 ## Image Stitching
-Image Stitching code could be found in masterScript folder.
+Image Stitching code could be found in `image_stitching` folder.
 
-To run the code, navigate to [main program](./masterScript/main.py)
+Navigate to [image_stitching](./src/image_stitching/), and run the code : 
+```
+py main.py
+```
+Customization 
+```
+main.py
+90      ordered     --> "True" if images are manually ordered or "False" 
+84      sc.seamless --> "True" if needed feathering or "False"
+124     method      --> "bf" or "knn"
+130     path        --> "path to images"
+```
+
+## Stitch Result
+
+![Corals](./asset/11-21-2024-10-54-45_st_AlreadyOrdered_bf_FeatherTrue.png)
+![Bike](./asset/11-21-2024-14-14-56_st_AlreadyOrdered_bf_FeatherTrue.png)
 
 ## ROV Guidance and Control
 ROV Guidance could be found in the src/lawn_mowing_movement
@@ -66,4 +82,5 @@ It will automatically run the main program and the data acquisition program.
 2. Create self coordinates based on DVL velocity if option 1 is not visible.
 3. Add ability to control altitude.
 4. Add feature to enables assist in attitude control. (Currently, joystick must be detached)
-
+5. Optimize image projection
+6. Faster ordered image processing (GPU)
