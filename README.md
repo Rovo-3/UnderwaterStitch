@@ -66,10 +66,10 @@ Settings and datas are stored in JSON file
     Storing parameter for PID, setpoint and LM waypoint settings. Those parameter can be dynamicly changed during the tuning, and before commanding the LM movement.
 
     LM_param
-    1. "heading": desired heading in degree for LM
-    2. "length": length of each LM
-    3. "gap" : the gap between LM
-    4. "iterations" : desired iterations for LM
+      - "heading": desired heading in degree for LM
+      - "length": length of each LM
+      - "gap" : the gap between LM
+      - "iterations" : desired iterations for LM
 
 - sensor_data.json
 
