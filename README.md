@@ -34,10 +34,11 @@ py main.py
 Customization 
 ```
 main.py
-90      ordered     --> "True" if images are manually ordered or "False" 
-84      sc.seamless --> "True" if needed feathering or "False"
-124     method      --> "bf" or "knn"
-130     path        --> "path to images"
+Line
+├─90      ordered     --> "True" if images are manually ordered or "False" 
+├─94      sc.seamless --> "True" if needed feathering or "False"
+├─124     method      --> "bf" or "knn"
+└─130     path        --> "path to images"
 ```
 
 ## Stitch Result
