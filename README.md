@@ -8,9 +8,7 @@ git clone https://github.com/Rovo-3/UnderwaterStitch
 
 ## Directory Tree:
 
-Image Stitching program is in the masterScript folder.
-
-ROV Guidance and Control program is in the src folder.
+Image Stitching, and ROV Guidance and Control program is in the src folder.
 ```
 ├───feasibility_study
 │   ├───Bagas
@@ -25,7 +23,7 @@ ROV Guidance and Control program is in the src folder.
         └───simulation_and_playground
 ```
 ## Image Stitching
-Image Stitching code could be found in `image_stitching` folder.
+Image Stitching code could be found in `src/image_stitching` folder.
 
 Navigate to [image_stitching](./src/image_stitching/), and run the code : 
 ```
@@ -34,10 +32,11 @@ py main.py
 Customization 
 ```
 main.py
+
 Line
-├─89      method      --> "bf" or "knn"
-├─90      ordered     --> "True" if images are manually ordered or "False" 
-├─94      sc.seamless --> "True" if needed feathering or "False"
+├─89      method      --> "bf" for more precision or "knn" for faster time
+├─90      ordered     --> "True" if images are manually ordered or "False" to find image order automatically
+├─94      sc.seamless --> "True" if needed feathering or "False" if no feathering
 └─98      path        --> "path to images"
 ```
 
