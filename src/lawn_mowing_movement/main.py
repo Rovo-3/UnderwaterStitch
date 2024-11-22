@@ -10,7 +10,7 @@ import os
 import math
 import numpy as np
 import matplotlib.pyplot as plt
-
+from threading import Thread
 
 # Create the connection
 master = mavutil.mavlink_connection('udpin:0.0.0.0:14770')
@@ -71,6 +71,7 @@ def manual_control(x=0,y=0,z=500,r=0):
         z,
         r,
         0)
+        
 def getData(file_name,type="sensor",retries=5,delay=0.1):
     for attempt in range(retries):
         try:

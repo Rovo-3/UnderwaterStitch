@@ -4,7 +4,6 @@ import numpy as np
 
 class StitchCentral:
     def __init__(self):
-
         # added by Jason
         self.first = True
         self.offset = 80
@@ -14,7 +13,6 @@ class StitchCentral:
         assert (
             base_img.shape == new_img.shape
         ), "Images must have the same shape for overlaying."
-        
         base_gray = cv2.cvtColor(base_img, cv2.COLOR_BGR2GRAY)
         gray = cv2.cvtColor(new_img, cv2.COLOR_BGR2GRAY)
 

@@ -464,7 +464,7 @@ if __name__ == "__main__":
     stitched_image = stitchCentral(brisk, newImageOrder, allowedPixels=10)
 
     cv2.imwrite(
-        f"../../Results/{datetime.datetime.now().strftime("%m-%d-%Y-%H-%M-%S")}_st_{method}.png",
+        f"../../Results/{datetime.datetime.now().strftime('%m-%d-%Y-%H-%M-%S')}_st_{method}.png",
         stitched_image,
     )
 
