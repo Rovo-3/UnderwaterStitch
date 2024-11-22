@@ -121,15 +121,18 @@ def showFinalImage(stitched_image):
     cv2.waitKey(0)
 
 
-method = "bf"
+method = "knn"
+ordered = False
 ip = ImageProcessor()
 dmc = DetectMatchConfidence()
 sc = StitchCentral()
+sc.seamless = True
 ppi = ProcessPairingImage(method=method)
 
-path = "./Images/2ndfloor/*"
+# path = "D:/Scripts/Python/AllUnderwaterStitchingScript/UnderwaterStitch/Images/testset2/set7trial17/*"
+# path = "./Images/2ndfloor/*"
 # path = "./Images/TestSet/set4-rovPool/*"
-# path = "./imgTest"
+path = "./imgTest"
 imagePaths = natsorted(list(glob.glob(path)))
 
 arrimgname, arrimage = [], []
@@ -164,7 +167,7 @@ if __name__ == "__main__":
         readImage = ip.imagePreProcess(readImage)
 
         blurlevel = ip.detectBlur(readImage)
-        if blurlevel < 100:
+        if blurlevel < 200:
             print(blurlevel)
             continue
 
@@ -187,30 +190,32 @@ if __name__ == "__main__":
 
     start = time.time()
 
-    if totaliterations > 5000:
-        process = "Parallel"
-        print(process)
-        matxConf = ppi.imageOrderByConf_Multi(
-            totalimage, arrimgname, arrdescriptors, arrkeypoints
-        )
+    if ordered == False:
+        if totaliterations > 1500:
+            process = "Parallel"
+            print(process)
+            matxConf = ppi.imageOrderByConf_Multi(
+                totalimage, arrimgname, arrdescriptors, arrkeypoints
+            )
 
-    else:
-        process = "Single"
-        print(process)
-        matxConf = ppi.imageOrderByConf_Single(
-            totalimage, arrimgname, arrdescriptors, arrkeypoints
-        )
+        else:
+            process = "Single"
+            print(process)
+            matxConf = ppi.imageOrderByConf_Single(
+                totalimage, arrimgname, arrdescriptors, arrkeypoints
+            )
 
-    print(f"Time confidence ordered: {time.time()-start}")
-    time.sleep(3)
+        print(f"Time confidence ordered: {time.time()-start}")
+        time.sleep(3)
 
-    # print(matxConf)
+        newOrderIdx = generateOrderedImages(matxConf)
+        print(newOrderIdx)
 
-    newOrderIdx = generateOrderedImages(matxConf)
-    print(newOrderIdx)
-
-    print("copying order")
-    newImageOrder = [arrimage[i] for i in newOrderIdx]
+        print("copying order")
+        newImageOrder = [arrimage[i] for i in newOrderIdx]
+    else: 
+        newImageOrder = arrimage
+        process = "AlreadyOrdered"
 
     """
     # allowedPixels are the distance of error between two points of matches. 
@@ -223,13 +228,15 @@ if __name__ == "__main__":
     start = time.time()
     stitched_image = sc.stitchCentral(detector, newImageOrder, allowedPixels=5)
     print(f"Time stitching: {time.time()-start}")
+    print(f"Feathering: {sc.seamless}")
 
     cv2.imwrite(
-        f"./Results/{datetime.datetime.now().strftime('%m-%d-%Y-%H-%M-%S')}_st_{process}_{method}.png",
+        f"./Results/{datetime.datetime.now().strftime("%m-%d-%Y-%H-%M-%S")}_st_{process}_{method}_Feather{sc.seamless}.png",
         stitched_image,
     )
+
     print(
-        f"./Results/{datetime.datetime.now().strftime('%m-%d-%Y-%H-%M-%S')}_st_{process}_{method}.png"
+        f"./Results/{datetime.datetime.now().strftime("%m-%d-%Y-%H-%M-%S")}_st_{process}_{method}_Feather{sc.seamless}.png"
     )
 
     # print(heightth)

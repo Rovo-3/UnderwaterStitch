@@ -1,0 +1,8 @@
+imutils==0.5.4
+matplotlib==3.9.2
+natsort==8.4.0
+numpy==2.0.2
+opencv_contrib_python==4.10.0.84
+pymavlink==2.4.42
+scikit-image==0.24.0
+stitching==0.6.1

@@ -27,7 +27,7 @@ class Sensors:
         # if the getting DVL data from socket
         if self.dvl_from_socket:
             self.dvlhost = '192.168.2.95'
-            # self.dvlhost = 'dvl.demo.waterlinked.com'
+            self.dvlhost = 'dvl.demo.waterlinked.com'
             self.dvlport = 16171
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.dvlhost,self.dvlport))
@@ -179,13 +179,12 @@ class Sensors:
         except:
             print("Cannot get altitude")
     def getDVLSocket(self):
-        #   try receiving data from socket and decode
-        print("getting_data")
+        # try receiving data from socket and decode
         try:
             data = self.socket.recv(2048).decode('utf-8')
             if data:
                 jsonData= json.loads(data)
-                print(jsonData)
+                # print(jsonData)
                 try:
                     data_list={
                                 "altitude":0,
@@ -287,9 +286,9 @@ class Sensors:
         data["depth"] = self.data_log["depth"]
         with open(self.file_name, "w") as target_file:
             json.dump(data, target_file, indent=4)
-    
 
-if __name__ == "__main__":
+# prepare incase want a module
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-timeStep', type=float, default=0.5, help='addTimestep')
     args = parser.parse_args()
@@ -306,18 +305,22 @@ if __name__ == "__main__":
                 logging.updateFile()
                 lastlog=now
             curr_pos = logging.cur_pos
-            print(curr_pos)
 
+            # print(curr_pos)
             # plot the vehicle position
+
             vehicle_position = np.vstack([vehicle_position,np.array(curr_pos)])
             plt.clf()
             plt.plot(vehicle_position[:, 0], vehicle_position[:, 1], 'bo-', label='Vehicle Position')
             plt.title("Converted Position Data")
             plt.legend()
             plt.draw()
-            # plt.pause(0.01)
+            plt.pause(0.01)
 
         except KeyboardInterrupt:
             print("Byebye")
             exit()
 
+
+if __name__ == "__main__":
+    main()

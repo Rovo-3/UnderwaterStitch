@@ -4,16 +4,15 @@ import numpy as np
 
 class StitchCentral:
     def __init__(self):
-
         # added by Jason
-        self.first=True
+        self.first = True
         self.offset = 80
+        self.seamless = True
 
-    def overlayImages(self, base_img, new_img, masks=None, seamless=True):
+    def overlayImages(self, base_img, new_img, masks=None):
         assert (
             base_img.shape == new_img.shape
         ), "Images must have the same shape for overlaying."
-        
         base_gray = cv2.cvtColor(base_img, cv2.COLOR_BGR2GRAY)
         gray = cv2.cvtColor(new_img, cv2.COLOR_BGR2GRAY)
 
@@ -21,23 +20,28 @@ class StitchCentral:
         base_img_ori = base_img.copy()
         base_img[mask] = new_img[mask]
         combined_img = base_img
-        
-        if seamless:
-            assert (masks is not None), "Mask must be profided"
-            edge_mask, (inner_mask, kernel) = masks
+
+        if self.seamless:
+            assert masks is not None, "Mask must be profided"
+            edge_mask = masks[0]
+            inner_mask = masks[1][0]
+            kernel = masks[1][1]
 
             edge_mask_gray = cv2.cvtColor(edge_mask, cv2.COLOR_BGR2GRAY)
             _, binary = cv2.threshold(base_gray, 1, 255, cv2.THRESH_BINARY)
 
-            edge_mask_dilated=cv2.dilate(edge_mask_gray,None, iterations=int(self.offset*2))
+            edge_mask_dilated = cv2.dilate(
+                edge_mask_gray, None, iterations=int(self.offset * 2)
+            )
             overlap_mask = cv2.bitwise_and(edge_mask_dilated, binary)
-            
-            featheringTransition = self._feathering(combined_img, base_img_ori, new_img, inner_mask, kernel, overlap_mask)
-            
+
+            featheringTransition = self.feathering(
+                combined_img, base_img_ori, new_img, inner_mask, kernel, overlap_mask
+            )
+
             return featheringTransition
 
         return combined_img
-
 
     def canvasSize(self, images, homographies):
         height, width = images[0].shape[:2]
@@ -130,11 +134,11 @@ class StitchCentral:
                 flags=cv2.INTER_LANCZOS4,
                 borderMode=cv2.BORDER_TRANSPARENT,
             )
-            masks=self.getEdgeMask(warped_image)
-            stitched = self.overlayImages(stitched, warped_image,masks,seamless=True)
+            masks = self.getEdgeMask(warped_image)
+            stitched = self.overlayImages(stitched, warped_image, masks)
 
         return stitched
-    
+
     def getEdgeMask(self, image):
         # Create empty mask
         mask = np.zeros_like(image, dtype=np.uint8)
@@ -148,30 +152,44 @@ class StitchCentral:
         _, binary = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
 
         # Find contours
-        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(
+            binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
         largest_contour = max(contours, key=cv2.contourArea)
 
-        
         cv2.drawContours(edge_mask, [largest_contour], -1, (255, 255, 255), thickness=1)
-        cv2.drawContours(inner_mask_offset, [largest_contour], -1, (255, 255, 255), thickness=cv2.FILLED)
+        cv2.drawContours(
+            inner_mask_offset,
+            [largest_contour],
+            -1,
+            (255, 255, 255),
+            thickness=cv2.FILLED,
+        )
 
-        inner_mask_offset = cv2.erode(inner_mask_offset, None, iterations=int(self.offset))
+        inner_mask_offset = cv2.erode(
+            inner_mask_offset, None, iterations=int(self.offset)
+        )
 
-        size= int(self.offset*2.8)
-        kernel_size = (size+1,size+1) if size%2==0 else (size,size)
+        size = int(self.offset * 2.8)
+        kernel_size = (size + 1, size + 1) if size % 2 == 0 else (size, size)
         # blurred_inner_mask = cv2.GaussianBlur(inner_mask_offset,kernel_size,0)
-        return (edge_mask, (inner_mask_offset,kernel_size))
+        return (edge_mask, (inner_mask_offset, kernel_size))
 
     def gaussianBlurTransition(self, base_img, edge_mask):
-        blurred_img  = cv2.GaussianBlur(base_img,(99,99),0)
-        output = np.where(edge_mask==np.array([255, 255, 255]), blurred_img, base_img)
+        blurred_img = cv2.GaussianBlur(base_img, (99, 99), 0)
+        output = np.where(edge_mask == np.array([255, 255, 255]), blurred_img, base_img)
         return output
 
-    def _feathering(self, combined_img, base_img, overlay_img, mask, kernel, overlap_mask = None):
-        blurred_mask  = cv2.GaussianBlur(mask,kernel,0)
+    def feathering(
+        self, combined_img, base_img, overlay_img, mask, kernel, overlap_mask=None
+    ):
+        blurred_mask = cv2.GaussianBlur(mask, kernel, 0)
         feathered_mask_normalized = blurred_mask / 255.0  # Normalize to range [0, 1]
 
-        feathered_image = (base_img * (1 - feathered_mask_normalized) + overlay_img * feathered_mask_normalized).astype(np.uint8)   
+        feathered_image = (
+            base_img * (1 - feathered_mask_normalized)
+            + overlay_img * feathered_mask_normalized
+        ).astype(np.uint8)
 
         if overlap_mask is not None:
             overlap_mask = cv2.merge([overlap_mask] * 3)
@@ -183,4 +201,4 @@ class StitchCentral:
 
             feathered_image = combined_img
 
-        return feathered_image  
+        return feathered_image
