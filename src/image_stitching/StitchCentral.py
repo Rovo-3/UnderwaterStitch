@@ -20,12 +20,19 @@ class StitchCentral:
         base_img_ori = base_img.copy()
         base_img[mask] = new_img[mask]
         combined_img = base_img
+<<<<<<< HEAD:masterScript/StitchCentral.py
 
         if self.seamless:
             assert masks is not None, "Mask must be profided"
             edge_mask = masks[0]
             inner_mask = masks[1][0]
             kernel = masks[1][1]
+=======
+        
+        if seamless:
+            assert (masks is not None), "Mask must be profided"
+            edge_mask, (inner_mask, kernel) = masks
+>>>>>>> 8568834682e70843df38c965d61a63b020c5c706:src/image_stitching/StitchCentral.py
 
             edge_mask_gray = cv2.cvtColor(edge_mask, cv2.COLOR_BGR2GRAY)
             _, binary = cv2.threshold(base_gray, 1, 255, cv2.THRESH_BINARY)
@@ -34,11 +41,17 @@ class StitchCentral:
                 edge_mask_gray, None, iterations=int(self.offset * 2)
             )
             overlap_mask = cv2.bitwise_and(edge_mask_dilated, binary)
+<<<<<<< HEAD:masterScript/StitchCentral.py
 
             featheringTransition = self.feathering(
                 combined_img, base_img_ori, new_img, inner_mask, kernel, overlap_mask
             )
 
+=======
+            
+            featheringTransition = self._feathering(combined_img, base_img_ori, new_img, inner_mask, kernel, overlap_mask)
+            
+>>>>>>> 8568834682e70843df38c965d61a63b020c5c706:src/image_stitching/StitchCentral.py
             return featheringTransition
 
         return combined_img
@@ -180,10 +193,15 @@ class StitchCentral:
         output = np.where(edge_mask == np.array([255, 255, 255]), blurred_img, base_img)
         return output
 
+<<<<<<< HEAD:masterScript/StitchCentral.py
     def feathering(
         self, combined_img, base_img, overlay_img, mask, kernel, overlap_mask=None
     ):
         blurred_mask = cv2.GaussianBlur(mask, kernel, 0)
+=======
+    def _feathering(self, combined_img, base_img, overlay_img, mask, kernel, overlap_mask = None):
+        blurred_mask  = cv2.GaussianBlur(mask,kernel,0)
+>>>>>>> 8568834682e70843df38c965d61a63b020c5c706:src/image_stitching/StitchCentral.py
         feathered_mask_normalized = blurred_mask / 255.0  # Normalize to range [0, 1]
 
         feathered_image = (
