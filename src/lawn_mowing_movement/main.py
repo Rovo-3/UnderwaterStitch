@@ -71,8 +71,8 @@ def manual_control(x=0,y=0,z=500,r=0):
         z,
         r,
         0)
-        
-def getData(file_name,type="sensor",retries=5,delay=0.1):
+
+def get_data(file_name,type="sensor",retries=5,delay=0.1):
     for attempt in range(retries):
         try:
             # Attempt to open and load the file
@@ -83,8 +83,8 @@ def getData(file_name,type="sensor",retries=5,delay=0.1):
             if type=="sensor":
                 return data["DVL"], data["depth"]
             # if control
-            elif type=="control":
-                return data["Forward"], data["Yaw"], data["Depth"], data["Setpoint"]
+            elif type=="param":
+                return data["Forward"], data["Yaw"], data["Depth"], data["Setpoint"], data["LM_param"]
         except (FileNotFoundError, PermissionError) as e:
             print(f"Attempt {attempt + 1}: File not accessible - {e}. Retrying...")
         except json.JSONDecodeError as e:
@@ -98,14 +98,16 @@ def getData(file_name,type="sensor",retries=5,delay=0.1):
     
 def start_LM_mission():
     print("Starting the LM Mission")
-
-    wp_heading,length,gap,iteration = 270,5,5,1
+    param_file_name = file_directory+"/parameter.json"
+    forward_param, yaw_param, depth_param, _, LM_param = get_data(param_file_name, "param")
+    wp_heading, length, gap, iteration = LM_param["heading"],LM_param["length"], LM_param["gap"], LM_param["iterations"]
+    
     # regulate to [-pi,pi]
     wp_heading = (math.radians(wp_heading)+math.pi)%(2*math.pi)-math.pi
 
     # 2. Generate WP
     file_name = file_directory+"/sensor_data.json"
-    dvl_data, depth = getData(file_name)
+    dvl_data, depth = get_data(file_name)
     # normalize the heading
     dvl_data["yaw"] = (dvl_data["yaw"]+math.pi)%(2*math.pi)-math.pi
     init_pos = (dvl_data["x"],dvl_data["y"])
@@ -119,8 +121,6 @@ def start_LM_mission():
     guidance = Guidance(waypoints=waypoints, mode="Stanley", lookahead_distance=lookahead_distance,k_e=0.5, distance_treshold=0.2, generate_virtual_wp=False)
 
     # 4. Instantiate PID yaw
-    control_file_name = file_directory+"/PID_parameter.json"
-    forward_param, yaw_param, depth_param, _ = getData(control_file_name, "control")
     yaw_control = PID(Kp=yaw_param["kp"],Ki=yaw_param["ki"],Kd=yaw_param["kd"])
 
     # 5. Determine the maximum, minimum, and midval of control signal
@@ -148,7 +148,7 @@ def start_LM_mission():
     # 6. Start the loop for control mechanism
     while True:
         # Check the sensor data for PID input
-        dvl_data, depth = getData(file_name)
+        dvl_data, depth = get_data(file_name)
         # Calculate the Guidance
         curr_heading = dvl_data["yaw"]
         curr_heading = (curr_heading+math.pi)%(2*math.pi)-math.pi
@@ -244,8 +244,8 @@ def tuning_PID():
     print("Do not tune in air!")
     is_tuning_yaw = False
     is_tuning_depth = False
-    control_file_name = file_directory+"/PID_parameter.json"
-    forward_param, yaw_param, depth_param, setpoint = getData(control_file_name, "control")
+    param_file_name = file_directory+"/parameter.json"
+    forward_param, yaw_param, depth_param, setpoint, _ = get_data(param_file_name, "param")
     mode = input("yaw or depth?")
     param=None
     if mode == "yaw":
@@ -277,8 +277,8 @@ def tuning_PID():
     # Main Loop
     for i in range(loop_time):
         sensor_file_name = file_directory+"/sensor_data.json"
-        dvl_data, depth_current = getData(sensor_file_name)
-        _, param_yaw, param_depth, setpoint = getData(control_file_name, "control")
+        dvl_data, depth_current = get_data(sensor_file_name)
+        _, param_yaw, param_depth, setpoint, _ = get_data(param_file_name, "param")
         data_desired = setpoint[mode]
         if mode == "yaw":
             yaw_rad = np.deg2rad(setpoint["yaw"])
@@ -409,7 +409,7 @@ while True:
             disarm()
         if command == Commands.CHECK_DATA.value:
             file_name = file_directory+"/sensor_data.json"
-            getData(file_name=file_name)
+            get_data(file_name=file_name)
         if command == Commands.YAW_RIGHT.value:
             arm()
             set_rc(4,1526)
