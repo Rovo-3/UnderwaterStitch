@@ -77,6 +77,10 @@ To run the code, navigate to [lawn_mowing_movement directory](./src/lawn_mowing_
 ```
 It will automatically run the main program and the data acquisition program.
 
+Example of LM movement:
+
+![LM movement result](./asset/LM_movement.jpg)
+
 ### Future Development:
 
 1. Optimize the transformation of the coordinates.
